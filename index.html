@@ -1257,7 +1257,14 @@ function acSearchAsig(q){
   const list=document.getElementById('itemAcAsig');
   if(!q){list.classList.remove('open');return;}
   const m=inventario.filter(i=>(i.nombre||'').toLowerCase().includes(q.toLowerCase())).slice(0,10);
-  list.innerHTML=m.map(i=>'<div class="ac-item" onclick="showAsigPorItem(''+i.id+'',''+i.nombre.replace(/'/g,"\'")+'')">'+catIcon(i.categoria)+' '+i.nombre+'</div>').join('');
+  list.innerHTML='';
+  m.forEach(i=>{
+    const div=document.createElement('div');
+    div.className='ac-item';
+    div.innerHTML=catIcon(i.categoria)+' '+i.nombre;
+    div.addEventListener('click',()=>showAsigPorItem(i.id,i.nombre));
+    list.appendChild(div);
+  });
   list.classList.add('open');
 }
 

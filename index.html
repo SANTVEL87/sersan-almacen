@@ -1038,7 +1038,7 @@ async function registrarSalida(){
   document.getElementById('succSub').textContent=cant+' × '+herrNombre+' → '+trab;
   document.getElementById('succNote').textContent=res==='offline'?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
   navTo('scSuccess','Confirmación');
-  ['salBuscar','salHiddenId','salTrab','salCed','salEmail','salObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['salBuscar','salHiddenId','salTrab','salCed','salObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('salCant').value='1';
   document.getElementById('salFecha').value=new Date().toISOString().split('T')[0];
   clearSig('sigSal');

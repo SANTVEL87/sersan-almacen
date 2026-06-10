@@ -482,7 +482,11 @@ window.addEventListener('offline',()=>{document.getElementById('offlineBanner').
       +'<div style="font-size:16px;font-weight:700;margin-bottom:8px">Verificando certificado...</div>'
       +'<div style="font-size:12px;color:#888">Código: '+pazCodigo+'</div></div>';
     try{
-      const snap=await firebase.firestore().collection('pazysalvos').where('codigo','==',pazCodigo).limit(1).get();
+      // Try by codigo first, then by cedula for backward compatibility
+      let snap=await firebase.firestore().collection('pazysalvos').where('codigo','==',pazCodigo).limit(1).get();
+      if(snap.empty){
+        snap=await firebase.firestore().collection('pazysalvos').where('cedula','==',pazCodigo).limit(1).get();
+      }
       if(!snap.empty){
         const d=snap.docs[0].data();
         const fecha=d.fecha?new Date(d.fecha).toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'}):'—';

@@ -770,8 +770,8 @@ function showTrabajadorDetail(cedula){
         <div class="pend-det">${i.cantPendiente} unidad(es) · ${i.categoria||''} · ${i.obra||''}</div>
         <div class="pend-days">📅 Salida: ${i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—'}</div>
         <div style="display:flex;gap:6px;margin-top:7px">
-          ${i.foto?`<button onclick="verImagen('${i.foto.replace(/'/g,"\\'")}')" style="flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer">📷 Ver foto</button>`:''}
-          ${i.firma?`<button onclick="verImagen('${i.firma.replace(/'/g,"\\'")}')" style="flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer">✍️ Ver firma</button>`:''}
+          ${i.foto?`<button data-img="${btoa(i.foto)}" onclick="verImagenBtn(this)" style="flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer">📷 Ver foto</button>`:''}
+          ${i.firma?`<button data-img="${btoa(i.firma)}" onclick="verImagenBtn(this)" style="flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer">✍️ Ver firma</button>`:''}
         </div>
       </div>`).join(''):'<div class="no-results">Sin artículos pendientes</div>'}
     ${!tienePendiente?`<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr)">Sin artículos pendientes en almacén</div></div>`:''}
@@ -829,9 +829,23 @@ function acSearch(input,listId,hiddenId){
   const q=input.value.toLowerCase().trim();
   const list=document.getElementById(listId);
   if(!q){list.classList.remove('open');return;}
-  const matches=inventario.filter(i=>(i.nombre||'').toLowerCase().includes(q)&&(!currentMovCat||i.categoria===currentMovCat)).slice(0,10);
-  list.innerHTML=matches.map(i=>`<div class="ac-item" ontouchstart="" onclick="selectAcItem('${i.id}','${(i.nombre||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${input.id}','${listId}','${hiddenId}')">${catIcon(i.categoria)} ${i.nombre} <span style="color:var(--tx3);font-size:9px">(${i.disponible} disp.)</span></div>`).join('')+
-  (isAlmacenista?`<div class="ac-item add-new" onclick="openNuevoItem()">➕ Agregar artículo nuevo</div>`:'');
+  const isSalida=listId==='salAcList';
+  const matches=inventario.filter(i=>{
+    const nameMatch=(i.nombre||'').toLowerCase().includes(q);
+    const catMatch=!currentMovCat||i.categoria===currentMovCat;
+    const stockOk=!isSalida||(i.disponible||0)>0;
+    return nameMatch&&catMatch&&stockOk;
+  }).slice(0,10);
+  if(isSalida&&matches.length===0&&q){
+    list.innerHTML=`<div class="ac-item" style="color:var(--rd);font-weight:700">⚠️ Sin stock disponible para este artículo</div>`;
+    list.classList.add('open');
+    return;
+  }
+  list.innerHTML=matches.map(i=>{
+    const stockColor=(i.disponible||0)<=2?'color:var(--yl2)':'color:var(--gr)';
+    return `<div class="ac-item" ontouchstart="" onclick="selectAcItem('${i.id}','${(i.nombre||'').replace(/'/g,"\'").replace(/"/g,'&quot;')}','${input.id}','${listId}','${hiddenId}')">${catIcon(i.categoria)} ${i.nombre} <span style="${stockColor};font-size:9px">(${i.disponible} disp.)</span></div>`;
+  }).join('')+
+  (isAlmacenista&&!isSalida?`<div class="ac-item add-new" onclick="openNuevoItem()">➕ Agregar artículo nuevo</div>`:'');
   list.classList.add('open');
 }
 
@@ -1039,6 +1053,9 @@ async function registrarSalida(){
   const foto=getPhotoB64('prevSal');
   const firma=getSigData('sigSal');
   if(!herrNombre||!trab||!ced||!fecha||!foto||!firma){checkSalidaReqs();alert('Completa todos los campos obligatorios (foto y firma son requeridas)');return;}
+  const itemSal=inventario.find(i=>i.id===herrId);
+  if(itemSal&&(itemSal.disponible||0)<=0){alert('⚠️ Este artículo no tiene stock disponible. No se puede registrar la salida.');return;}
+  if(itemSal&&cant>(itemSal.disponible||0)){alert(`⚠️ Solo hay ${itemSal.disponible} unidad(es) disponible(s). No puedes registrar ${cant}.`);return;}
   const btn=document.getElementById('btnSalida');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const data={
@@ -1229,6 +1246,9 @@ function verImagen(src){
   overlay.appendChild(img);
   overlay.appendChild(close);
   document.body.appendChild(overlay);
+}
+function verImagenBtn(btn){
+  try{const src=atob(btn.getAttribute('data-img'));verImagen(src);}catch(e){console.log('Error al mostrar imagen',e);}
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))document.querySelectorAll('.autocomplete-list').forEach(l=>l.classList.remove('open'));});

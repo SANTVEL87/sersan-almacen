@@ -1215,4 +1215,128 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))document.querySelectorAll('.autocomplete-list').forEach(l=>l.classList.remove('open'));});
 </script>
 </body>
-</html>
+</html>function acSearch(input,listId,hiddenId){
+  const q=input.value.toLowerCase().trim();
+  const list=document.getElementById(listId);
+  if(!q){list.classList.remove('open');return;}
+  const isSalida=listId==='salAcList';
+  const matches=inventario.filter(i=>{
+    const nameMatch=(i.nombre||'').toLowerCase().includes(q)||(i.codigo||'').toLowerCase().includes(q);
+    const catMatch=!currentMovCat||i.categoria===currentMovCat;
+    const stockOk=!isSalida||(i.disponible||0)>0;
+    return nameMatch&&catMatch&&stockOk;
+  }).slice(0,12);
+  if(isSalida&&matches.length===0&&q){
+    list.innerHTML='<div class="ac-item" style="color:var(--rd);font-weight:700">⚠️ Sin stock disponible para este artículo</div>';
+    list.classList.add('open');
+    return;
+  }
+  list.innerHTML=matches.map(i=>{
+    const stockColor=(i.disponible||0)<=2?'color:var(--yl2)':'color:var(--gr)';
+    const nombre=(i.nombre||'').replace(/'/g,"\'").replace(/"/g,'&quot;');
+    return '<div class="ac-item" ontouchstart="" onclick="selectAcItem(''+i.id+'',''+nombre+'',''+input.id+'',''+listId+'',''+hiddenId+'')">'
+      +catIcon(i.categoria)+' '+i.nombre
+      +' <span style="'+stockColor+';font-size:9px">('+i.disponible+' disp.)</span></div>';
+  }).join('')+(isAlmacenista&&!isSalida?'<div class="ac-item add-new" onclick="openNuevoItem()">➕ Agregar artículo nuevo</div>':'');
+  list.classList.add('open');
+}
+
+function acSearchAsig(q){
+  const list=document.getElementById('itemAcAsig');
+  if(!q){list.classList.remove('open');return;}
+  const m=inventario.filter(i=>(i.nombre||'').toLowerCase().includes(q.toLowerCase())).slice(0,10);
+  list.innerHTML=m.map(i=>'<div class="ac-item" onclick="showAsigPorItem(''+i.id+'',''+i.nombre.replace(/'/g,"\'")+'')">'+catIcon(i.categoria)+' '+i.nombre+'</div>').join('');
+  list.classList.add('open');
+}
+
+function selectAcItem(id,nombre,inputId,listId,hiddenId){
+  document.getElementById(inputId).value=nombre;
+  document.getElementById(hiddenId).value=id;
+  document.getElementById(listId).classList.remove('open');
+  if(inputId==='entBuscar'){
+    const item=inventario.find(i=>i.id===id);
+    if(item){
+      document.getElementById('entCodigo').value=item.codigo||'';
+      document.getElementById('entMarca').value=item.marca||'';
+      document.getElementById('entDesc').value=item.descripcion||'';
+    }
+  }
+}
+
+function showAsigPorItem(id,nombre){
+  document.getElementById('itemSearchAsig').value=nombre;
+  document.getElementById('itemAcAsig').classList.remove('open');
+  const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id).map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===s.cedula&&d.herrId===id);
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+  }).filter(s=>s.cantPendiente>0);
+  document.getElementById('itemAsigResult').innerHTML=asig.length?
+    '<div class="sec-title">'+asig.length+' asignación(es) activa(s)</div>'+asig.map(m=>'<div class="pend"><div class="pend-name">'+(m.trabajador||'—')+'</div><div class="pend-det">CC '+(m.cedula||'—')+' · '+(m.obra||'')+' · '+m.cantPendiente+' unid.</div><div class="pend-days">📅 '+(m.fechaSalida||m.fecha?new Date(m.fechaSalida||m.fecha).toLocaleDateString('es-CO'):'—')+'</div></div>').join(''):
+    '<div class="no-results">Nadie tiene este artículo asignado</div>';
+}
+
+function openNuevoItem(){
+  const buscar=document.getElementById('entBuscar');
+  if(buscar)document.getElementById('nuevoNombre').value=buscar.value||'';
+  document.getElementById('modalNuevoItem').classList.add('open');
+}
+
+async function guardarNuevoItem(){
+  const nombre=document.getElementById('nuevoNombre').value.trim();
+  const categoria=document.getElementById('nuevoCategoria').value;
+  const codigo=document.getElementById('nuevoCodigo').value.trim();
+  const marca=document.getElementById('nuevaMarca').value.trim();
+  const descripcion=document.getElementById('nuevaDesc').value.trim();
+  if(!nombre){alert('El nombre es obligatorio');return;}
+  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0};
+  try{
+    const ref=await db.collection('inventario').add(newItem);
+    newItem.id=ref.id;
+  }catch(e){newItem.id='local_'+Date.now();}
+  inventario.push(newItem);
+  renderInv(inventario);
+  closeModal('modalNuevoItem');
+  document.getElementById('entBuscar').value=nombre;
+  document.getElementById('entHiddenId').value=newItem.id;
+  document.getElementById('entCodigo').value=codigo;
+  document.getElementById('entMarca').value=marca;
+  document.getElementById('entDesc').value=descripcion;
+  alert('✅ Artículo agregado: '+nombre);
+}
+
+function buscarPazSalvo(){
+  const cedula=document.getElementById('pazCedula').value.trim();
+  if(!cedula){alert('Ingresa la cédula');return;}
+  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula);
+  const res=document.getElementById('pazResult');
+  if(!salidas.length){res.innerHTML='<div class="card"><div style="font-size:12px;color:var(--tx2)">No se encontraron registros para la cédula <strong>'+cedula+'</strong></div></div>';return;}
+  const trab=salidas[0];
+  const items=salidas.map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+  }).filter(s=>s.cantPendiente>0);
+  if(items.length>0){
+    res.innerHTML='<div class="alert"><div class="alert-name">⚠️ No puede recibir paz y salvo</div><div class="alert-sub">'+(trab.trabajador||'—')+' tiene '+items.length+' artículo(s) pendiente(s)</div></div>'
+      +'<div class="sec-title">Pendientes:</div>'
+      +items.map(i=>'<div class="pend"><div class="pend-name">'+(i.herrNombre||'—')+'</div><div class="pend-det">'+i.cantPendiente+' unidad(es)</div></div>').join('');
+  } else {
+    const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
+    const codigo='PS-'+Date.now().toString(36).toUpperCase();
+    res.innerHTML='<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr);margin-top:3px">'+(trab.trabajador||'—')+' · CC '+cedula+'</div><div style="font-size:10px;color:var(--gr);margin-top:2px">'+fecha+'</div><div style="font-size:9px;color:var(--gr);margin-top:2px">Código: '+codigo+'</div></div>'
+      +(isAlmacenista?'<div class="fg"><label>Nombre completo</label><input type="text" id="pazNombre" value="'+(trab.trabajador||'')+'" placeholder="Nombre completo"/></div>'
+      +'<div class="fg"><label>Correo para enviar</label><input type="email" id="pazEmail" value="'+(trab.email||'')+'" placeholder="correo@ejemplo.com"/></div>'
+      +'<button class="btn yellow" onclick="generarPazYSalvo(''+cedula+'',''+codigo+'')">📧 Generar y enviar Paz y Salvo</button>':'');
+  }
+}
+
+async function generarPazYSalvo(cedula,codigo){
+  const nombre=document.getElementById('pazNombre').value.trim()||cedula;
+  const email=document.getElementById('pazEmail').value.trim();
+  const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
+  if(!email){alert('Ingresa el correo del trabajador');return;}
+  try{await db.collection('pazysalvos').add({cedula,nombre,email,fecha:new Date().toISOString(),codigo});}catch(e){}
+  const body='PAZ Y SALVO - SERSAN INGENIERÍA S.A.S.\n\nEl señor(a): '+nombre+'\nCédula: '+cedula+'\nFecha: '+fecha+'\nCódigo: '+codigo+'\n\nSe encuentra a PAZ Y SALVO con el Almacén SERSAN INGENIERÍA S.A.S.\n\nVerificar en: https://santvel87.github.io/sersan-almacen?paz='+cedula+'\n\n_________________________________\nSERSAN Almacén - SERSAN INGENIERÍA S.A.S.';
+  window.location.href='mailto:'+email+'?subject=Paz y Salvo Almacén SERSAN - '+nombre+'&body='+encodeURIComponent(body);
+}

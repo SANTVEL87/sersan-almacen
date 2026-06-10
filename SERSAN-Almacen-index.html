@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SERSAN Almacén">
+<meta name="theme-color" content="#1A1A1A">
+<title>SERSAN Almacén</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bk:#1A1A1A;--yl:#F5C800;--yl2:#C9A200;--gr:#1A6B3C;--grl:#E3F2EA;--rd:#A00;--rdl:#FEE;--bl:#185FA5;--bll:#E5EDF8;--tx:#1A1A1A;--tx2:#555;--tx3:#888;--br:#DDD;--bg:#F5F5F5;--wh:#fff}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx)}
+#app{height:100%;display:flex;flex-direction:column;max-width:480px;margin:0 auto;background:var(--wh);position:relative}
+.topbar{background:var(--bk);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;min-height:48px}
+.tb-back{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:0;display:none;line-height:1;margin-right:2px}
+.tb-title{flex:1;font-size:14px;font-weight:700}
+.tb-user{font-size:10px;color:#aaa}
+.tb-badge{background:rgba(245,200,0,0.2);color:var(--yl);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;margin-top:1px;display:none}
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;display:none}
+.screen.active{display:block}
+.navbar{display:flex;border-top:1px solid var(--br);background:var(--wh);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
+.nb{flex:1;padding:6px 2px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:8px;color:var(--tx3);background:none;border:none;cursor:pointer}
+.nb.active{color:var(--yl)}
+.nb span{font-size:18px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+.stat{background:var(--bg);border-radius:9px;padding:10px;text-align:center}
+.stat-n{font-size:24px;font-weight:800;line-height:1}
+.stat-l{font-size:9px;color:var(--tx2);margin-top:2px}
+.sec-title{font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:7px;margin-top:2px}
+.alert{background:#FFFBE6;border-left:3px solid var(--yl);border-radius:0 7px 7px 0;padding:7px 9px;margin-bottom:5px}
+.alert-name{font-size:11px;font-weight:700;color:var(--bk)}
+.alert-sub{font-size:9px;color:var(--yl2);margin-top:1px}
+.pend{background:var(--wh);border:1px solid var(--br);border-radius:9px;padding:9px;margin-bottom:7px}
+.pend-name{font-size:12px;font-weight:700}
+.pend-det{font-size:10px;color:var(--tx2);margin-top:2px}
+.pend-days{display:inline-block;margin-top:4px;font-size:9px;background:#FFFBE6;color:var(--yl2);border-radius:4px;padding:2px 6px;font-weight:700}
+.card{background:var(--wh);border:1px solid var(--br);border-radius:9px;padding:11px;margin-bottom:9px}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tab{flex:1;padding:7px 3px;border-radius:7px;border:1px solid var(--br);background:var(--wh);font-size:10px;font-weight:700;cursor:pointer;color:var(--tx2);text-align:center}
+.tab.active{background:var(--bk);color:var(--yl);border-color:var(--bk)}
+.cat-tabs{display:flex;gap:4px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px}
+.cat-tabs::-webkit-scrollbar{display:none}
+.ctab{padding:5px 10px;border-radius:18px;border:1px solid var(--br);background:var(--wh);font-size:10px;font-weight:700;cursor:pointer;color:var(--tx2);white-space:nowrap}
+.ctab.active{background:var(--bk);color:var(--yl);border-color:var(--bk)}
+.fg{margin-bottom:10px}
+.fg label{display:block;font-size:10px;font-weight:700;color:var(--tx2);margin-bottom:3px}
+.fg input,.fg select,.fg textarea{width:100%;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px;color:var(--tx);background:var(--wh);-webkit-appearance:none;outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--bk)}
+.fg input[type=date]{color:var(--tx)}
+.search-box{position:relative;margin-bottom:9px}
+.search-box input{padding-left:30px !important}
+.search-box::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px}
+.autocomplete-wrap{position:relative}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--wh);border:1px solid var(--br);border-radius:0 0 8px 8px;z-index:100;max-height:200px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+.autocomplete-list.open{display:block}
+.ac-item{padding:8px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0}
+.ac-item:last-child{border-bottom:none}
+.ac-item:active{background:var(--bg)}
+.ac-item.add-new{color:var(--gr);font-weight:700;background:#f8fff8}
+.photo-box{border:1.5px dashed var(--br);border-radius:9px;padding:14px;text-align:center;cursor:pointer;background:var(--bg);margin-bottom:10px;position:relative}
+.photo-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.photo-box .ico{font-size:24px;display:block;margin-bottom:3px}
+.photo-box p{font-size:11px;color:var(--tx2);font-weight:500}
+.photo-preview{width:100%;max-height:120px;object-fit:cover;border-radius:7px;margin-bottom:10px;display:none}
+.sig-wrap{border:1px solid var(--br);border-radius:9px;overflow:hidden;margin-bottom:10px}
+.sig-header{padding:6px 10px;border-bottom:1px solid var(--br);display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--tx2);background:var(--bg)}
+.sig-clear{font-size:10px;color:var(--bk);cursor:pointer;background:none;border:none;font-weight:700;text-decoration:underline}
+canvas.sig-pad{display:block;width:100%;height:110px;background:var(--wh);cursor:crosshair;touch-action:none}
+.btn{width:100%;padding:11px;border-radius:8px;border:1px solid var(--br);background:var(--wh);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--tx);margin-bottom:8px}
+.btn:active{opacity:0.7}
+.btn.primary{background:var(--bk);color:var(--yl);border-color:var(--bk)}
+.btn.primary:disabled{background:#666;color:#999;border-color:#666;cursor:not-allowed;opacity:0.6}
+.btn.success{background:var(--gr);color:#fff;border-color:var(--gr)}
+.btn.yellow{background:var(--yl);color:var(--bk);border-color:var(--yl)}
+.btn.outline{background:var(--wh);color:var(--bk);border:1px solid var(--bk)}
+.btn.google{background:#fff;color:#333;border:1px solid #ddd;font-size:13px;padding:13px}
+.item-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.item-row:last-child{border-bottom:none}
+.item-ico{width:32px;height:32px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.item-name{font-size:11px;font-weight:700;color:var(--tx);flex:1;line-height:1.3}
+.item-sub{font-size:9px;color:var(--tx3);margin-top:1px}
+.badge{font-size:9px;padding:2px 5px;border-radius:4px;font-weight:700;flex-shrink:0}
+.badge.ok{background:var(--grl);color:var(--gr)}
+.badge.low{background:#FFFBE6;color:var(--yl2)}
+.badge.out{background:var(--rdl);color:var(--rd)}
+.mov-row{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #f5f5f5;align-items:flex-start}
+.mov-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+.mov-dot.e{background:var(--grl)}.mov-dot.s{background:var(--rdl)}.mov-dot.d{background:var(--bll)}
+.mov-name{font-size:11px;font-weight:700}
+.mov-meta{font-size:9px;color:var(--tx3);margin-top:1px}
+.mov-qty{font-size:11px;font-weight:800;flex-shrink:0}
+.mov-qty.e{color:var(--gr)}.mov-qty.s{color:var(--rd)}.mov-qty.d{color:var(--bl)}
+.worker-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.worker-ava{width:34px;height:34px;border-radius:50%;background:var(--bk);color:var(--yl);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.worker-name{font-size:12px;font-weight:700;flex:1}
+.worker-sub{font-size:9px;color:var(--tx3)}
+.worker-count{font-size:10px;background:var(--rdl);color:var(--rd);border-radius:10px;padding:2px 7px;font-weight:700}
+.worker-count.ok{background:var(--grl);color:var(--gr)}
+#loginScreen{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;background:var(--wh)}
+.login-h{font-size:19px;font-weight:800;color:var(--bk);margin-top:5px;margin-bottom:2px}
+.login-sub{font-size:11px;color:var(--tx2);margin-bottom:20px;text-align:center}
+.err-msg{color:var(--rd);font-size:11px;text-align:center;margin-bottom:7px;min-height:16px}
+.success-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;text-align:center;min-height:250px}
+.success-ico{font-size:52px;margin-bottom:10px}
+.success-h{font-size:17px;font-weight:800;margin-bottom:5px}
+.success-sub{font-size:11px;color:var(--tx2);margin-bottom:3px}
+.success-note{font-size:10px;color:var(--tx3);margin-bottom:20px}
+#offlineBanner{background:var(--bk);color:var(--yl);text-align:center;font-size:10px;padding:3px;display:none;flex-shrink:0}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:none;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--wh);border-radius:14px 14px 0 0;padding:18px 16px;width:100%;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:14px;font-weight:800;margin-bottom:12px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx3);margin-top:-2px}
+.detail-modal{position:absolute;inset:0;background:var(--wh);z-index:150;display:none;flex-direction:column}
+.detail-modal.open{display:flex}
+.detail-header{background:var(--bk);padding:10px 14px;display:flex;align-items:center;gap:8px;color:var(--yl);flex-shrink:0}
+.detail-body{flex:1;overflow-y:auto;padding:14px}
+.detail-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:11px}
+.detail-key{color:var(--tx2)}.detail-val{font-weight:700;text-align:right;max-width:60%;font-size:11px}
+.readonly-banner{background:#FFFBE6;border-left:3px solid var(--yl);border-radius:0 7px 7px 0;padding:9px 11px;margin-bottom:12px;font-size:11px;color:var(--yl2);font-weight:600}
+.no-results{text-align:center;color:var(--tx3);padding:24px 0;font-size:12px}
+.paz-box{background:var(--grl);border:2px solid var(--gr);border-radius:10px;padding:14px;text-align:center;margin-bottom:12px}
+.paz-title{font-size:15px;font-weight:800;color:var(--gr);margin-bottom:3px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(245,200,0,0.3);border-top-color:var(--yl);border-radius:50%;animation:spin 0.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.req-indicator{font-size:9px;color:var(--rd);margin-left:2px}
+.field-ok{border-color:var(--gr) !important}
+.import-area{border:2px dashed var(--yl);border-radius:9px;padding:16px;text-align:center;cursor:pointer;background:#FFFBE6;margin-bottom:10px;position:relative}
+.import-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.import-area p{font-size:12px;color:var(--yl2);font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <svg viewBox="0 0 160 160" width="120" height="120">
+    <line x1="20" y1="140" x2="60" y2="108" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="140" y1="140" x2="100" y2="108" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="60" y1="108" x2="100" y2="108" stroke="#999" stroke-width="2.5"/>
+    <line x1="60" y1="108" x2="50" y2="78" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="100" y1="108" x2="110" y2="78" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="50" y1="78" x2="110" y2="78" stroke="#999" stroke-width="2.5"/>
+    <line x1="60" y1="108" x2="110" y2="78" stroke="#ccc" stroke-width="1.3"/>
+    <line x1="100" y1="108" x2="50" y2="78" stroke="#ccc" stroke-width="1.3"/>
+    <line x1="50" y1="78" x2="58" y2="50" stroke="#999" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="110" y1="78" x2="102" y2="50" stroke="#999" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="58" y1="50" x2="102" y2="50" stroke="#999" stroke-width="2.2"/>
+    <line x1="58" y1="50" x2="68" y2="26" stroke="#999" stroke-width="2" stroke-linecap="round"/>
+    <line x1="102" y1="50" x2="92" y2="26" stroke="#999" stroke-width="2" stroke-linecap="round"/>
+    <line x1="80" y1="26" x2="80" y2="6" stroke="#999" stroke-width="2" stroke-linecap="round"/>
+    <line x1="26" y1="38" x2="134" y2="38" stroke="#777" stroke-width="2.8" stroke-linecap="round"/>
+    <line x1="33" y1="26" x2="127" y2="26" stroke="#777" stroke-width="2.4" stroke-linecap="round"/>
+    <line x1="43" y1="16" x2="117" y2="16" stroke="#777" stroke-width="2" stroke-linecap="round"/>
+    <line x1="26" y1="38" x2="26" y2="46" stroke="#aaa" stroke-width="1.5"/>
+    <line x1="134" y1="38" x2="134" y2="46" stroke="#aaa" stroke-width="1.5"/>
+    <circle cx="26" cy="47" r="3" fill="#F5C800"/>
+    <circle cx="134" cy="47" r="3" fill="#F5C800"/>
+    <circle cx="80" cy="6" r="3" fill="#F5C800"/>
+    <text x="44" y="158" text-anchor="middle" fill="#F5C800" font-size="24" font-weight="900" font-family="Arial Black,Arial,sans-serif">SER</text>
+    <text x="116" y="158" text-anchor="middle" fill="#1A1A1A" font-size="24" font-weight="900" font-family="Arial Black,Arial,sans-serif">SAN</text>
+  </svg>
+  <div style="font-size:8px;color:#aaa;letter-spacing:2px;text-transform:uppercase">Ingeniería S.A.S.</div>
+  <div class="login-h">SERSAN Almacén</div>
+  <div class="login-sub">Control de inventario y dotación</div>
+  <div style="width:100%">
+    <div class="err-msg" id="loginErr"></div>
+    <button class="btn google" id="loginBtn" onclick="doGoogleLogin()">
+      <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Entrar con Google
+    </button>
+    <p style="font-size:9px;color:var(--tx3);text-align:center;margin-top:6px">Solo usuarios autorizados de SERSAN</p>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div id="offlineBanner">📡 Sin conexión</div>
+  <div class="topbar">
+    <button class="tb-back" id="tbBack" onclick="goBack()">‹</button>
+    <div style="width:22px;height:22px;flex-shrink:0">
+      <svg viewBox="0 0 80 90" width="22" height="25">
+        <line x1="10" y1="74" x2="31" y2="56" stroke="#aaa" stroke-width="2" stroke-linecap="round"/>
+        <line x1="70" y1="74" x2="49" y2="56" stroke="#aaa" stroke-width="2" stroke-linecap="round"/>
+        <line x1="31" y1="56" x2="49" y2="56" stroke="#aaa" stroke-width="2"/>
+        <line x1="31" y1="56" x2="26" y2="41" stroke="#aaa" stroke-width="2" stroke-linecap="round"/>
+        <line x1="49" y1="56" x2="54" y2="41" stroke="#aaa" stroke-width="2" stroke-linecap="round"/>
+        <line x1="26" y1="41" x2="54" y2="41" stroke="#aaa" stroke-width="2"/>
+        <line x1="26" y1="41" x2="29" y2="27" stroke="#aaa" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="54" y1="41" x2="51" y2="27" stroke="#aaa" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="40" y1="27" x2="40" y2="10" stroke="#aaa" stroke-width="1.8"/>
+        <line x1="14" y1="32" x2="66" y2="32" stroke="#888" stroke-width="2" stroke-linecap="round"/>
+        <line x1="18" y1="22" x2="62" y2="22" stroke="#888" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="14" cy="33" r="2" fill="#F5C800"/>
+        <circle cx="66" cy="33" r="2" fill="#F5C800"/>
+        <circle cx="40" cy="10" r="2" fill="#F5C800"/>
+      </svg>
+    </div>
+    <div class="tb-title" id="tbTitle">Inicio</div>
+    <div style="text-align:right">
+      <div class="tb-user" id="tbUser"></div>
+      <div class="tb-badge" id="tbBadge">Almacenista</div>
+    </div>
+  </div>
+
+  <!-- INICIO -->
+  <div class="screen active" id="scInicio">
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-n" id="stTotal">—</div><div class="stat-l">Total artículos</div></div>
+      <div class="stat"><div class="stat-n" style="color:var(--gr)" id="stDisp">—</div><div class="stat-l">Disponibles</div></div>
+      <div class="stat"><div class="stat-n" style="color:var(--yl2)" id="stOut">—</div><div class="stat-l">En campo</div></div>
+      <div class="stat"><div class="stat-n" style="color:var(--rd)" id="stLow">—</div><div class="stat-l">Stock bajo</div></div>
+    </div>
+    <div class="sec-title">Alertas de stock</div>
+    <div id="alertList"><div class="no-results">Cargando...</div></div>
+    <div class="sec-title" style="margin-top:12px">Pendientes por devolver</div>
+    <div id="pendList"><div class="no-results">Cargando...</div></div>
+    <button class="btn outline" style="margin-top:14px;font-size:10px;padding:7px" onclick="doLogout()">Cerrar sesión</button>
+  </div>
+
+  <!-- MOVIMIENTOS -->
+  <div class="screen" id="scMovimientos">
+    <div id="readonlyBanner" class="readonly-banner" style="display:none">👁️ Modo consulta — Solo el almacenista registra movimientos</div>
+    <div id="movContent">
+      <div class="tabs">
+        <button class="tab active" onclick="setMovTab(this,'tEnt')">📥 Entrada</button>
+        <button class="tab" onclick="setMovTab(this,'tSal')">📤 Salida</button>
+        <button class="tab" onclick="setMovTab(this,'tDev')">↩️ Devolución</button>
+      </div>
+
+      <!-- ENTRADA -->
+      <div id="tEnt">
+        <div class="cat-tabs" id="entCatTabs">
+          <button class="ctab active" onclick="setMovCat(this,'Herramientas','ent')">🔧 Herramientas</button>
+          <button class="ctab" onclick="setMovCat(this,'EPP','ent')">🦺 EPP</button>
+          <button class="ctab" onclick="setMovCat(this,'Dotación','ent')">👕 Dotación</button>
+          <button class="ctab" onclick="setMovCat(this,'Seguridad','ent')">🛡️ Seguridad</button>
+          <button class="ctab" onclick="setMovCat(this,'Mecánica','ent')">⚙️ Mecánica</button>
+          <button class="ctab" onclick="setMovCat(this,'Eléctrica','ent')">⚡ Eléctrica</button>
+        </div>
+        <div class="fg"><label>Artículo <span class="req-indicator">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="entBuscar" placeholder="Escribir para buscar..." oninput="acSearch(this,'entAcList','entHiddenId')" autocomplete="off"/>
+            <div class="autocomplete-list" id="entAcList"></div>
+          </div>
+          <input type="hidden" id="entHiddenId"/>
+        </div>
+        <button class="btn outline" style="margin-bottom:10px;font-size:11px;padding:8px" onclick="openNuevoItem()">➕ Agregar artículo nuevo al inventario</button>
+        <div class="fg"><label>Cantidad <span class="req-indicator">*</span></label><input type="number" id="entCant" value="1" min="1"/></div>
+        <div class="fg"><label>Código interno</label><input type="text" id="entCodigo" placeholder="Ej: ADA-GEN" readonly style="background:var(--bg)"/></div>
+        <div class="fg"><label>Marca</label><input type="text" id="entMarca" placeholder="Marca del artículo"/></div>
+        <div class="fg"><label>Descripción</label><input type="text" id="entDesc" placeholder="Características"/></div>
+        <div class="fg"><label>Proveedor</label><input type="text" id="entProv" placeholder="Nombre del proveedor"/></div>
+        <div class="fg"><label>N° Factura / Remisión</label><input type="text" id="entFact" placeholder="FAC-2026-001"/></div>
+        <div class="fg"><label>Valor unitario ($)</label><input type="number" id="entValor" placeholder="0" min="0"/></div>
+        <div class="fg"><label>Fecha de ingreso <span class="req-indicator">*</span></label><input type="date" id="entFecha"/></div>
+        <div class="fg"><label>Foto de factura (opcional)</label>
+          <div class="photo-box" id="pbEnt">
+            <input type="file" accept="image/*,application/pdf" capture="environment" onchange="prevPhoto(this,'prevEnt','pbEnt')"/>
+            <span class="ico">📷</span><p>Tomar foto o cargar PDF</p>
+          </div>
+          <img id="prevEnt" class="photo-preview"/>
+        </div>
+        <div class="fg"><label>Observaciones</label><textarea id="entObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
+        <button class="btn primary" onclick="registrarEntrada()">✓ Registrar entrada al almacén</button>
+      </div>
+
+      <!-- SALIDA -->
+      <div id="tSal" style="display:none">
+        <div class="cat-tabs" id="salCatTabs">
+          <button class="ctab active" onclick="setMovCat(this,'Herramientas','sal')">🔧 Herramientas</button>
+          <button class="ctab" onclick="setMovCat(this,'EPP','sal')">🦺 EPP</button>
+          <button class="ctab" onclick="setMovCat(this,'Dotación','sal')">👕 Dotación</button>
+          <button class="ctab" onclick="setMovCat(this,'Seguridad','sal')">🛡️ Seguridad</button>
+          <button class="ctab" onclick="setMovCat(this,'Mecánica','sal')">⚙️ Mecánica</button>
+          <button class="ctab" onclick="setMovCat(this,'Eléctrica','sal')">⚡ Eléctrica</button>
+        </div>
+        <div class="fg"><label>Artículo <span class="req-indicator">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="salBuscar" placeholder="Escribir para buscar..." oninput="acSearch(this,'salAcList','salHiddenId')" autocomplete="off"/>
+            <div class="autocomplete-list" id="salAcList"></div>
+          </div>
+          <input type="hidden" id="salHiddenId"/>
+        </div>
+        <div class="fg"><label>Cantidad <span class="req-indicator">*</span></label><input type="number" id="salCant" value="1" min="1"/></div>
+        <div class="fg"><label>Nombre del trabajador <span class="req-indicator">*</span></label><input type="text" id="salTrab" placeholder="Nombre completo"/></div>
+        <div class="fg"><label>Cédula <span class="req-indicator">*</span></label><input type="text" id="salCed" placeholder="N° de documento" inputmode="numeric"/></div>
+        <div class="fg"><label>Obra / Área <span class="req-indicator">*</span></label>
+          <select id="salObra"><option>Montaje</option><option>Obra Civil</option><option>Bodega</option><option>Administrativo</option><option>Otro</option></select>
+        </div>
+        <div class="fg"><label>Fecha de salida <span class="req-indicator">*</span></label><input type="date" id="salFecha"/></div>
+        <div class="fg"><label>Foto estado del artículo <span class="req-indicator">*</span></label>
+          <div class="photo-box" id="pbSal">
+            <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevSal','pbSal')"/>
+            <span class="ico">📷</span><p>Tomar foto antes de entregar</p>
+          </div>
+          <img id="prevSal" class="photo-preview"/>
+        </div>
+        <div class="fg"><label>Firma del trabajador <span class="req-indicator">*</span></label>
+          <div class="sig-wrap">
+            <div class="sig-header"><span>Firme aquí con el dedo</span><button class="sig-clear" onclick="clearSig('sigSal')">Borrar</button></div>
+            <canvas class="sig-pad" id="sigSal" width="440" height="110"></canvas>
+          </div>
+        </div>
+        <div id="salReqStatus" style="font-size:10px;color:var(--rd);margin-bottom:8px;display:none">⚠️ Falta: <span id="salReqList"></span></div>
+        <div class="fg"><label>Observaciones</label><textarea id="salObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
+        <button class="btn primary" id="btnSalida" onclick="registrarSalida()" disabled>✓ Registrar salida de almacén</button>
+      </div>
+
+      <!-- DEVOLUCIÓN -->
+      <div id="tDev" style="display:none">
+        <div class="fg"><label>Cédula del trabajador <span class="req-indicator">*</span></label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="devCedBuscar" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+            <button onclick="buscarDevPorCedula()" style="padding:8px 12px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Buscar</button>
+          </div>
+        </div>
+        <div id="devTrabInfo" style="display:none" class="card" style="background:var(--bll)">
+          <div style="font-size:11px;color:var(--bl);font-weight:700">Trabajador encontrado:</div>
+          <div style="font-size:13px;font-weight:800;margin-top:2px" id="devTrabNombre"></div>
+          <div style="font-size:10px;color:var(--tx2)" id="devTrabCed"></div>
+        </div>
+        <div id="devItemsList" style="display:none">
+          <div class="sec-title" style="margin-top:8px">Artículos asignados — seleccionar para devolver</div>
+          <div id="devItemsContainer"></div>
+        </div>
+        <div id="devForm" style="display:none">
+          <div class="card" style="background:var(--bll);border-color:#B5D4F4;margin-top:10px">
+            <div style="font-size:10px;color:var(--bl);font-weight:700">Devolviendo:</div>
+            <div style="font-size:13px;font-weight:800;margin-top:2px" id="devItemNombre"></div>
+            <div style="font-size:10px;color:var(--tx2)" id="devItemDetalle"></div>
+          </div>
+          <div class="fg"><label>Cantidad a devolver <span class="req-indicator">*</span></label><input type="number" id="devCant" value="1" min="1"/></div>
+          <div class="fg"><label>Fecha de devolución <span class="req-indicator">*</span></label><input type="date" id="devFecha"/></div>
+          <div class="fg"><label>Estado al regreso</label>
+            <select id="devEstado"><option>Bueno</option><option>Regular</option><option>Dañado</option></select>
+          </div>
+          <div class="fg"><label>Foto al recibir (opcional)</label>
+            <div class="photo-box" id="pbDev">
+              <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevDev','pbDev')"/>
+              <span class="ico">📷</span><p>Foto al recibir</p>
+            </div>
+            <img id="prevDev" class="photo-preview"/>
+          </div>
+          <div class="fg"><label>Firma de quien devuelve <span class="req-indicator">*</span></label>
+            <div class="sig-wrap">
+              <div class="sig-header"><span>Firme aquí</span><button class="sig-clear" onclick="clearSig('sigDev')">Borrar</button></div>
+              <canvas class="sig-pad" id="sigDev" width="440" height="110"></canvas>
+            </div>
+          </div>
+          <div class="fg"><label>Observaciones</label><textarea id="devObs" rows="2" style="resize:none" placeholder="Estado, novedades..."></textarea></div>
+          <button class="btn primary" onclick="registrarDevolucion()">✓ Confirmar devolución</button>
+          <button class="btn outline" onclick="cancelarDev()" style="font-size:11px">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTARIO -->
+  <div class="screen" id="scInventario">
+    <div class="cat-tabs">
+      <button class="ctab active" onclick="filterInvCat(this,'')">Todos</button>
+      <button class="ctab" onclick="filterInvCat(this,'Herramientas')">🔧</button>
+      <button class="ctab" onclick="filterInvCat(this,'EPP')">🦺</button>
+      <button class="ctab" onclick="filterInvCat(this,'Dotación')">👕</button>
+      <button class="ctab" onclick="filterInvCat(this,'Seguridad')">🛡️</button>
+      <button class="ctab" onclick="filterInvCat(this,'Mecánica')">⚙️</button>
+      <button class="ctab" onclick="filterInvCat(this,'Eléctrica')">⚡</button>
+      <button class="ctab" onclick="filterInvCat(this,'Manual')">🪛</button>
+      <button class="ctab" onclick="filterInvCat(this,'Apriete')">🔩</button>
+    </div>
+    <div class="search-box"><input type="text" id="invSearch" placeholder="Buscar artículo, código, marca..." oninput="filterInv(this.value)"/></div>
+    <div id="invStats" style="font-size:10px;color:var(--tx3);margin-bottom:8px"></div>
+    <div id="invList"><div class="no-results">Cargando...</div></div>
+    <div id="invToolbar" style="display:none;margin-top:12px;gap:7px;flex-direction:column">
+      <div class="import-area">
+        <input type="file" accept=".xlsx,.xlsm,.xls" onchange="importarExcel(this)"/>
+        <span style="font-size:20px">📊</span>
+        <p>Importar inventario desde Excel</p>
+      </div>
+      <button class="btn yellow" onclick="exportarExcel()">📥 Exportar inventario a Excel</button>
+    </div>
+  </div>
+
+  <!-- ASIGNADOS -->
+  <div class="screen" id="scAsignaciones">
+    <div class="tabs">
+      <button class="tab active" onclick="setAsigTab(this,'tAsigTrab')">👷 Por trabajador</button>
+      <button class="tab" onclick="setAsigTab(this,'tAsigItem')">🔧 Por artículo</button>
+    </div>
+    <div id="tAsigTrab">
+      <div class="search-box"><input type="text" id="trabSearch" placeholder="Nombre o cédula..." oninput="filterTrabajadores(this.value)"/></div>
+      <div id="trabList"><div class="no-results">Cargando asignaciones...</div></div>
+    </div>
+    <div id="tAsigItem" style="display:none">
+      <div class="autocomplete-wrap" style="margin-bottom:10px">
+        <input type="text" id="itemSearchAsig" placeholder="Buscar artículo..." oninput="acSearchAsig(this.value)" autocomplete="off"/>
+        <div class="autocomplete-list" id="itemAcAsig"></div>
+      </div>
+      <div id="itemAsigResult"><div class="no-results">Escribe para buscar</div></div>
+    </div>
+  </div>
+
+  <!-- PAZ Y SALVO -->
+  <div class="screen" id="scPazSalvo">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:32px">📄</div>
+      <div style="font-size:13px;font-weight:700;margin-top:4px">Paz y Salvo de Almacén</div>
+      <div style="font-size:10px;color:var(--tx2);margin-top:2px">Verificar si el trabajador no tiene artículos pendientes</div>
+    </div>
+    <div class="fg"><label>Cédula del trabajador</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="pazCedula" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+        <button onclick="buscarPazSalvo()" style="padding:8px 12px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Buscar</button>
+      </div>
+    </div>
+    <div id="pazResult"></div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="screen" id="scHistorial">
+    <div class="cat-tabs">
+      <button class="ctab active" onclick="filterHistCat(this,'')">Todos</button>
+      <button class="ctab" onclick="filterHistCat(this,'entrada')">📥 Entradas</button>
+      <button class="ctab" onclick="filterHistCat(this,'salida')">📤 Salidas</button>
+      <button class="ctab" onclick="filterHistCat(this,'devolucion')">↩️ Dev.</button>
+    </div>
+    <div id="histList"><div class="no-results">Cargando...</div></div>
+  </div>
+
+  <!-- ÉXITO -->
+  <div class="screen" id="scSuccess">
+    <div class="success-wrap">
+      <div class="success-ico">✅</div>
+      <div class="success-h" id="succH">¡Registro exitoso!</div>
+      <div class="success-sub" id="succSub"></div>
+      <div class="success-note" id="succNote"></div>
+      <button class="btn primary" onclick="navTo('scMovimientos','Movimientos')">+ Nuevo registro</button>
+      <button class="btn" onclick="navTo('scInicio','Inicio')">🏠 Inicio</button>
+    </div>
+  </div>
+
+  <!-- DETAIL MODAL TRABAJADOR -->
+  <div class="detail-modal" id="modalTrabajador">
+    <div class="detail-header">
+      <button onclick="closeModal('modalTrabajador')" style="background:none;border:none;color:var(--yl);font-size:22px;cursor:pointer;padding:0">‹</button>
+      <span style="font-size:13px;font-weight:700" id="modalTrabNombre">Trabajador</span>
+    </div>
+    <div class="detail-body" id="modalTrabBody"></div>
+  </div>
+
+  <!-- MODAL NUEVO ARTÍCULO -->
+  <div class="modal-overlay" id="modalNuevoItem">
+    <div class="modal-box">
+      <div class="modal-title">Nuevo artículo <button class="modal-close" onclick="closeModal('modalNuevoItem')">×</button></div>
+      <div class="fg"><label>Nombre <span class="req-indicator">*</span></label><input type="text" id="nuevoNombre" placeholder="Nombre del artículo"/></div>
+      <div class="fg"><label>Categoría <span class="req-indicator">*</span></label>
+        <select id="nuevoCategoria">
+          <option value="Herramientas">🔧 Herramientas</option>
+          <option value="EPP">🦺 EPP</option>
+          <option value="Dotación">👕 Dotación</option>
+          <option value="Seguridad">🛡️ Seguridad</option>
+          <option value="Mecánica">⚙️ Mecánica</option>
+          <option value="Eléctrica">⚡ Eléctrica</option>
+          <option value="Manual">🪛 Manual</option>
+          <option value="Apriete">🔩 Apriete</option>
+          <option value="Medición">📏 Medición</option>
+          <option value="Otra">📦 Otra</option>
+        </select>
+      </div>
+      <div class="fg"><label>Código interno</label><input type="text" id="nuevoCodigo" placeholder="Ej: MAR-GEN"/></div>
+      <div class="fg"><label>Marca</label><input type="text" id="nuevaMarca" placeholder="Opcional"/></div>
+      <div class="fg"><label>Descripción</label><input type="text" id="nuevaDesc" placeholder="Características técnicas"/></div>
+      <button class="btn primary" onclick="guardarNuevoItem()">✓ Guardar artículo</button>
+    </div>
+  </div>
+
+  <nav class="navbar">
+    <button class="nb active" onclick="navTo('scInicio','Inicio')" id="nb0"><span>🏠</span>Inicio</button>
+    <button class="nb" onclick="navTo('scMovimientos','Movimientos')" id="nb1"><span>🔄</span>Mover</button>
+    <button class="nb" onclick="navTo('scInventario','Inventario')" id="nb2"><span>📦</span>Stock</button>
+    <button class="nb" onclick="navTo('scAsignaciones','Asignados')" id="nb3"><span>👷</span>Asignados</button>
+    <button class="nb" onclick="navTo('scPazSalvo','Paz y Salvo')" id="nb4"><span>📄</span>Paz/Salvo</button>
+    <button class="nb" onclick="navTo('scHistorial','Historial')" id="nb5"><span>🕐</span>Historial</button>
+  </nav>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyAxA3tEc9-37C5Apd5jfs1P5UlGyiWXWJE",
+  authDomain:"sersan-almacen.firebaseapp.com",
+  projectId:"sersan-almacen",
+  storageBucket:"sersan-almacen.firebasestorage.app",
+  messagingSenderId:"629182093822",
+  appId:"1:629182093822:web:7649bfb42506f957db08af"
+});
+const auth=firebase.auth();
+const db=firebase.firestore();
+db.enablePersistence().catch(()=>{});
+
+const ALMACENISTA='sersanalmacen01@gmail.com';
+const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
+
+let currentUser=null,isAlmacenista=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
+let offlineQueue=JSON.parse(localStorage.getItem('sersanQ')||'[]');
+
+window.addEventListener('online',()=>{document.getElementById('offlineBanner').style.display='none';syncQueue();});
+window.addEventListener('offline',()=>{document.getElementById('offlineBanner').style.display='block';});
+
+// ---- AUTH ----
+auth.onAuthStateChanged(user=>{
+  if(user){
+    if(!AUTORIZADOS.includes(user.email)){auth.signOut();document.getElementById('loginErr').textContent='Correo no autorizado: '+user.email;return;}
+    currentUser=user;isAlmacenista=(user.email===ALMACENISTA);
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    const nombre=user.displayName||user.email;
+    document.getElementById('tbUser').textContent=nombre.split(' ')[0]||nombre;
+    if(isAlmacenista){document.getElementById('tbBadge').style.display='block';document.getElementById('invToolbar').style.display='flex';}
+    initApp();
+  } else {
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
+});
+
+async function doGoogleLogin(){
+  const btn=document.getElementById('loginBtn');
+  const err=document.getElementById('loginErr');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;err.textContent='';
+  try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());}
+  catch(e){err.textContent='Error al ingresar. Intenta de nuevo.';btn.innerHTML='<svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Entrar con Google';btn.disabled=false;}
+}
+function doLogout(){auth.signOut();}
+
+// ---- INIT ----
+async function initApp(){
+  if(!isAlmacenista){document.getElementById('readonlyBanner').style.display='block';document.getElementById('movContent').style.display='none';}
+  initSig('sigSal');initSig('sigDev');
+  const hoy=new Date().toISOString().split('T')[0];
+  document.getElementById('entFecha').value=hoy;
+  document.getElementById('salFecha').value=hoy;
+  document.getElementById('devFecha').value=hoy;
+  setupSalidaValidation();
+  await loadInventario();
+  await loadMovimientos();
+}
+
+// ---- NAV ----
+function navTo(sc,title){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(sc).classList.add('active');
+  document.getElementById('tbTitle').textContent=title;
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  const map={scInicio:'nb0',scMovimientos:'nb1',scInventario:'nb2',scAsignaciones:'nb3',scPazSalvo:'nb4',scHistorial:'nb5'};
+  if(map[sc])document.getElementById(map[sc]).classList.add('active');
+  document.getElementById('tbBack').style.display=(sc==='scSuccess')?'block':'none';
+  if(sc==='scAsignaciones')loadTrabajadores();
+}
+function goBack(){navTo('scInicio','Inicio');}
+function setMovTab(btn,id){
+  document.querySelectorAll('#scMovimientos .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['tEnt','tSal','tDev'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
+}
+function setMovCat(btn,cat,prefix){
+  currentMovCat=cat;
+  btn.closest('.cat-tabs').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(prefix+'Buscar').value='';
+  document.getElementById(prefix+'HiddenId').value='';
+  if(prefix==='ent'){document.getElementById('entCodigo').value='';document.getElementById('entMarca').value='';document.getElementById('entDesc').value='';}
+}
+function setAsigTab(btn,id){
+  document.querySelectorAll('#scAsignaciones .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['tAsigTrab','tAsigItem'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
+}
+
+// ---- OFFLINE ----
+async function guardarMov(data){
+  data.creadoPor=currentUser.email;data.fecha=new Date().toISOString();
+  if(navigator.onLine){
+    try{
+      const ref=await db.collection('movimientos').add(data);
+      data.id=ref.id;movimientos.unshift(data);return 'ok';
+    }catch(e){
+      console.log('Firestore error:',e.message);
+      if(e.message&&e.message.includes('too large')){
+        // Strip photos and try again
+        const dataLight={...data,foto:null};
+        try{
+          const ref=await db.collection('movimientos').add(dataLight);
+          dataLight.id=ref.id;
+          // Keep foto locally
+          dataLight.foto=data.foto;
+          movimientos.unshift(dataLight);
+          return 'ok';
+        }catch(e2){console.log('Retry failed:',e2);}
+      }
+    }
+  }
+  data._lid=Date.now().toString();data.id=data._lid;
+  offlineQueue.push(data);localStorage.setItem('sersanQ',JSON.stringify(offlineQueue));
+  movimientos.unshift(data);return 'offline';
+}
+async function syncQueue(){
+  if(!offlineQueue.length||!navigator.onLine)return;
+  for(const m of [...offlineQueue]){try{await db.collection('movimientos').add(m);offlineQueue=offlineQueue.filter(x=>x._lid!==m._lid);localStorage.setItem('sersanQ',JSON.stringify(offlineQueue));}catch(e){}}
+}
+
+// ---- INVENTARIO DATA ----
+const INVENTARIO_INICIAL = [{"id": "inv_001", "nombre": "Adaptador para taladro - 1/2\" a 3/4\"", "codigo": "ADA-GEN", "marca": "", "descripcion": "Vástago hex. 1/4\" a cuadrante 1/2\" - Para uso de copas con taladro", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_002", "nombre": "Ahoyadora - Earth Auger", "codigo": "AHO-GEN", "marca": "Total", "descripcion": "52cc - 1.4 kW - 8000 rpm - Tanque 1200 ml - Broca Ø150 x 800 mm", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_003", "nombre": "Alicate tipo diablo", "codigo": "ALI-DIA", "marca": "", "descripcion": "Alicate para cerca - Martillo, corta alambre, saca grapas y tensor", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_004", "nombre": "Almádana 12 lb", "codigo": "ALM-GEN", "marca": "", "descripcion": "Mango largo", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_005", "nombre": "Almádana 16 lb", "codigo": "ALM-GEN", "marca": "", "descripcion": "Mango largo", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_006", "nombre": "Almádana 4 lb", "codigo": "ALM-GEN", "marca": "", "descripcion": "Mango corto", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_007", "nombre": "Almádana 2 lb", "codigo": "ALM-GEN", "marca": "", "descripcion": "Mango corto", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_008", "nombre": "Arnés - Lote 34113 - Serie 7", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Montaje"}, {"id": "inv_009", "nombre": "Arnés - Lote 39156 - Serie 35", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_010", "nombre": "Arnés - Lote 39156 - Serie 36", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_011", "nombre": "Arnés - Lote 39159 - Serie 32", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_012", "nombre": "Arnés - Lote 40356 - Serie 176", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_013", "nombre": "Arnés - Lote 40356 - Serie 180", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_014", "nombre": "Arnés - Lote 41080 - Serie 291", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_015", "nombre": "Arnés - Lote 41080 - Serie 292", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_016", "nombre": "Arnés - Lote 41080 - Serie 293", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_017", "nombre": "Arnés - Lote 41080 - Serie 296", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_018", "nombre": "Arnés - Lote 41080 - Serie 297", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_019", "nombre": "Arnés - Lote 41080 - Serie 298", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_020", "nombre": "Arnés - Lote 41080 - Serie 299", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_021", "nombre": "Arnés - Lote 43746 - Serie 243", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_022", "nombre": "Arnés - Lote 43746 - Serie 246", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_023", "nombre": "Arnés - Lote 46517 - Serie 51", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Montaje"}, {"id": "inv_024", "nombre": "Arnés - Lote 47095 - Serie 35", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_025", "nombre": "Arnés - Lote 47095 - Serie 40", "codigo": "ARN-140", "marca": "", "descripcion": "Cap. máx 140Kg", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Obra Civil"}, {"id": "inv_026", "nombre": "Baño portátil", "codigo": "BAN-POR", "marca": "", "descripcion": "", "categoria": "Seguridad", "cantidad": 6, "disponible": 6, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_027", "nombre": "Barra de acero", "codigo": "BAR-ACE", "marca": "", "descripcion": "Acero macizo - Punta y uña - Varios tamaños", "categoria": "Manual", "cantidad": 8, "disponible": 8, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_028", "nombre": "Baterías", "codigo": "BAT-GEN", "marca": "", "descripcion": "", "categoria": "Otra", "cantidad": 10, "disponible": 10, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_029", "nombre": "Bomba sumergible - ID 0528", "codigo": "BOM-####", "marca": "Qaqua", "descripcion": "Caudal 98–444 L/min - 0.94 Hp - 230V", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_030", "nombre": "Botiquín de primeros auxilios", "codigo": "BOT-GEN", "marca": "", "descripcion": "Maletín portátil - Dotación primeros auxilios", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_031", "nombre": "Broca para madera - 1/2\" x 6\"", "codigo": "BRO-MAD", "marca": "", "descripcion": "Espiral helicoidal - Punta de centrado", "categoria": "Otra", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_032", "nombre": "Broca para metal - 1/2\"", "codigo": "BRO-MET", "marca": "", "descripcion": "HSS - Vástago reducido 3/8\"", "categoria": "Otra", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_033", "nombre": "Canguro compactador - Rojo - ID 521", "codigo": "API-###", "marca": "Maquiequipos", "descripcion": "6Hp Gasolina - 2,8L - Zapata 33x28,5cm - 75Kg", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_034", "nombre": "Canguro compactador - Rojo - ID 522", "codigo": "API-###", "marca": "Warrior", "descripcion": "6Hp Gasolina - 2,8L - Zapata 33x28,5cm - 75Kg", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_035", "nombre": "Canguro compactador - Amarillo - ID 523", "codigo": "API-###", "marca": "Warrior", "descripcion": "6Hp Gasolina - 2,8L - Zapata 33x28,5cm - 75Kg", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_036", "nombre": "Canguro compactador - Amarillo - ID 524", "codigo": "API-###", "marca": "Warrior", "descripcion": "6Hp Gasolina - 2,8L - Zapata 33x28,5cm - 75Kg", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_037", "nombre": "Canguro compactador - Amarillo - ID 525", "codigo": "API-###", "marca": "Warrior", "descripcion": "6Hp Gasolina - 2,8L - Zapata 33x28,5cm - 75Kg", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_038", "nombre": "Canguro compactador - Amarillo - ID 526", "codigo": "API-###", "marca": "Warrior", "descripcion": "6Hp Diésel - Zapata 33x28,5cm - 75Kg", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_039", "nombre": "Cargador múltiple x4", "codigo": "CAR-GEN", "marca": "Stanley", "descripcion": "4 bahías - Baterías Li-ion 18V/20V Stanley", "categoria": "Otra", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_040", "nombre": "Carretilla", "codigo": "CAR-RET", "marca": "", "descripcion": "Balde metálico 75L", "categoria": "Manual", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_041", "nombre": "Centro punto / punzón - 1/2\"", "codigo": "CEN-PUN", "marca": "", "descripcion": "Marca centros - Punta cónica", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_042", "nombre": "Cincel - 3/4\" - Largo 8\"", "codigo": "CIN-GEN", "marca": "", "descripcion": "Acero templado - Punta plana - Para concreto", "categoria": "Manual", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_043", "nombre": "Cizalla 36\"", "codigo": "CIZ-GEN", "marca": "", "descripcion": "Acero forjado - Mordazas para corte de varilla y alambre", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_044", "nombre": "Cono slump - 12\" x 8\" x 4\"", "codigo": "CON-SLU", "marca": "", "descripcion": "Cono de Abrams - Acero galvanizado - Mide asentamiento", "categoria": "Medición", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_045", "nombre": "Copa corta - Cuadrante 1/2\" - 24 mm", "codigo": "COP-COR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para uso manual", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_046", "nombre": "Copa corta - Cuadrante 1/2\" - 30 mm", "codigo": "COP-COR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para uso manual", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_047", "nombre": "Copa de impacto - Cuadrante 1/2\" - 1 1/8\"", "codigo": "COP-IMP", "marca": "", "descripcion": "Acero Cr-Mo negro - 6 puntas - Para llave de impacto", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_048", "nombre": "Copa de impacto - Cuadrante 1/2\" - 19 mm", "codigo": "COP-IMP", "marca": "", "descripcion": "Acero Cr-Mo negro - 6 puntas - Para llave de impacto", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_049", "nombre": "Copa de impacto - Cuadrante 1/2\" - 24 mm", "codigo": "COP-IMP", "marca": "", "descripcion": "Acero Cr-Mo negro - 6 puntas - Para llave de impacto", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_050", "nombre": "Copa de impacto - Cuadrante 1/2\" - 30 mm", "codigo": "COP-IMP", "marca": "", "descripcion": "Acero Cr-Mo negro - 6 puntas - Para llave de impacto", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_051", "nombre": "Copa larga - Cuadrante 1/2\" - 18 mm", "codigo": "COP-LAR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para tuercas profundas", "categoria": "Apriete", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_052", "nombre": "Copa larga - Cuadrante 1/2\" - 19 mm", "codigo": "COP-LAR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para tuercas profundas", "categoria": "Apriete", "cantidad": 10, "disponible": 10, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_053", "nombre": "Copa larga - Cuadrante 1/2\" - 24 mm", "codigo": "COP-LAR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para tuercas profundas", "categoria": "Apriete", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_054", "nombre": "Copa larga - Cuadrante 1/2\" - 29 mm", "codigo": "COP-LAR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para tuercas profundas", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_055", "nombre": "Copa larga - Cuadrante 1/2\" - 30 mm", "codigo": "COP-LAR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para tuercas profundas", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_056", "nombre": "Copa larga - Cuadrante 1/2\" - 7/8\"", "codigo": "COP-LAR", "marca": "", "descripcion": "Acero Cr-V - 6 puntas - Para tuercas profundas", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_057", "nombre": "Cortafrío", "codigo": "COR-FRI", "marca": "", "descripcion": "Acero forjado - Hoja templada - Para corte de metal en frío", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_058", "nombre": "Cubierta para machete - Cuero", "codigo": "MAC-GEN", "marca": "", "descripcion": "Protección y porte de machete", "categoria": "Otra", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_059", "nombre": "Destornillador de estría", "codigo": "DES-EST", "marca": "", "descripcion": "Mango plástico - Punta Phillips", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_060", "nombre": "Destornillador de pala - 8\"", "codigo": "DES-PAL", "marca": "", "descripcion": "Mango plástico - Punta plana", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_061", "nombre": "Destornillador de pala - 10\"", "codigo": "DES-PAL", "marca": "", "descripcion": "Mango plástico - Punta plana", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_062", "nombre": "Destornillador de pala - Uso obra civil", "codigo": "DES-PAL", "marca": "", "descripcion": "Mango plástico reforzado - Punta plana - Uso obra civil", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_063", "nombre": "Destornillador eléctrico", "codigo": "DES-ELE", "marca": "DeWalt", "descripcion": "Inalámbrico - Batería Li-ion - Mandril rápido", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_064", "nombre": "Diente tipo doble punta - retrocargador", "codigo": "CAR-GEN", "marca": "", "descripcion": "Doble punta - Para cucharón de retrocargador", "categoria": "Otra", "cantidad": 10, "disponible": 10, "proveedor": "", "factura": "", "valor": "", "observaciones": "8 Nuevos y 16 viejos"}, {"id": "inv_065", "nombre": "Dique de contención", "codigo": "DIQ-CON", "marca": "", "descripcion": "Barrera flexible - Para contención de derrames de líquidos", "categoria": "Otra", "cantidad": 14, "disponible": 14, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_066", "nombre": "Escalera Tipo extensión - 4 m - Roja", "codigo": "ESC-EXT", "marca": "", "descripcion": "Fibra de vidrio - 136 Kg", "categoria": "Otra", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_067", "nombre": "Escalera Tipo extensión - 6 m - Roja", "codigo": "ESC-EXT", "marca": "", "descripcion": "Fibra de vidrio - 136 Kg", "categoria": "Otra", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_068", "nombre": "Escalera Tipo extensión - 8 m - Gris", "codigo": "ESC-EXT", "marca": "", "descripcion": "Fibra de vidrio - 8m - 136 Kg", "categoria": "Otra", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_069", "nombre": "Eslinga en Y - Gancho corto - Lote 46868 - Serie 10", "codigo": "ESL-140", "marca": "", "descripcion": "Doble gancho con absorbedor - Cap. 140 Kg - Long. máx 1,8m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_070", "nombre": "Eslinga en Y - Gancho corto - Lote 46868 - Serie 9", "codigo": "ESL-140", "marca": "", "descripcion": "Doble gancho con absorbedor - Cap. 140 Kg - Long. máx 1,8m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_071", "nombre": "Estiba - Grande", "codigo": "EST-GEN", "marca": "", "descripcion": "Plataforma de madera - Para estiba y almacenamiento", "categoria": "Otra", "cantidad": 10, "disponible": 10, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_072", "nombre": "Extensión eléctrica - 20 m - Dúplex", "codigo": "EXT-ELE", "marca": "", "descripcion": "Dúplex - Calibre AWG", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_073", "nombre": "Extensión eléctrica - 20 m - Encauchetada", "codigo": "EXT-ELE", "marca": "", "descripcion": "Encauchetada - Cable reforzado - Calibre AWG", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_074", "nombre": "Extensión para ratchet - Cuadrante 1/2\" - 6\"", "codigo": "EXT-RAT", "marca": "", "descripcion": "Acero Cr-V - Cuadrante 1/2\" - Extiende alcance del ratchet", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_075", "nombre": "Extintor - 20 lb", "codigo": "EXT-FUE", "marca": "", "descripcion": "Polvo químico ABC - Capacidad 20 lb", "categoria": "Seguridad", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_076", "nombre": "Freno para línea de vida - 1/2\"", "codigo": "FRE-LIN", "marca": "Sosega", "descripcion": "Acero inox - Para cuerda 1/2\" - Res. 5000 lb", "categoria": "Seguridad", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_077", "nombre": "Grillete - 1\"", "codigo": "GRI-GEN", "marca": "Qingdao Jimo", "descripcion": "Acero forjado - Tipo arco europeo - WLL 8,5 T", "categoria": "Manual", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_078", "nombre": "Grillete - 3/4\"", "codigo": "GRI-GEN", "marca": "Qingdao Jimo", "descripcion": "Acero forjado - Tipo arco europeo - WLL 4,75 T", "categoria": "Manual", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_079", "nombre": "Isotanque - 1000 L", "codigo": "ISO-TAN", "marca": "", "descripcion": "Contenedor IBC 1000 L - Plástico HDPE - Jaula metálica", "categoria": "Otra", "cantidad": 14, "disponible": 14, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_080", "nombre": "Juego de llaves mixtas - 6 mm a 24 mm", "codigo": "JUE-LLA", "marca": "Total", "descripcion": "Acero Cr-V - 18 piezas", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_081", "nombre": "Línea de posicionamiento - Lote 17646 - Serie 156", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_082", "nombre": "Línea de posicionamiento - Lote 34199 - Serie 249", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_083", "nombre": "Línea de posicionamiento - Lote 41073 - Serie 839", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_084", "nombre": "Línea de posicionamiento - Lote 42398 - Serie 55", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_085", "nombre": "Línea de posicionamiento - Lote 45399 - Serie 335", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_086", "nombre": "Línea de posicionamiento - Lote 45399 - Serie 338", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_087", "nombre": "Línea de posicionamiento - Lote 46835 - Serie 202", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_088", "nombre": "Línea de posicionamiento - Lote 46835 - Serie 280", "codigo": "LPO-140", "marca": "Insafe", "descripcion": "Regulable - Gancho 3/4\" - Cap. 140 Kg - Long. 0,9 a 1,2 m", "categoria": "Seguridad", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_089", "nombre": "Línea de vida", "codigo": "LIN-VID", "marca": "Insafe", "descripcion": "Cuerda poliamida trenzada - Vertical - 13 a 16 mm", "categoria": "Seguridad", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_090", "nombre": "Llave de punta", "codigo": "LLA-GEN", "marca": "", "descripcion": "", "categoria": "Apriete", "cantidad": 9, "disponible": 9, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_091", "nombre": "Llave expansiva - 10\"", "codigo": "LLE-EXP", "marca": "", "descripcion": "Acero Cr-V - Mordaza ajustable", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_092", "nombre": "Llave expansiva - 8\"", "codigo": "LLE-EXP", "marca": "", "descripcion": "Acero Cr-V - Mordaza ajustable", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_093", "nombre": "Llave mixta - 1 1/4\"", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_094", "nombre": "Llave mixta - 1 1/8\"", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 8, "disponible": 8, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_095", "nombre": "Llave mixta - 10 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_096", "nombre": "Llave mixta - 11/16\"", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_097", "nombre": "Llave mixta - 12 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_098", "nombre": "Llave mixta - 13 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_099", "nombre": "Llave mixta - 14 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_100", "nombre": "Llave mixta - 15/16\"", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_101", "nombre": "Llave mixta - 17 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_102", "nombre": "Llave mixta - 18 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_103", "nombre": "Llave mixta - 19 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_104", "nombre": "Llave mixta - 22 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_105", "nombre": "Llave mixta - 24 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 11, "disponible": 11, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_106", "nombre": "Llave mixta - 27 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_107", "nombre": "Llave mixta - 29 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_108", "nombre": "Llave mixta - 30 mm", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 24, "disponible": 24, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_109", "nombre": "Llave mixta - 5/8\"", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_110", "nombre": "Llave mixta - 7/8\"", "codigo": "LLM-MIX", "marca": "", "descripcion": "Acero Cr-V - Boca fija y corona", "categoria": "Apriete", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_111", "nombre": "Machete", "codigo": "MAC-GEN", "marca": "", "descripcion": "Acero al carbono - Hoja 18\" - Mango plástico", "categoria": "Manual", "cantidad": 7, "disponible": 7, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_112", "nombre": "Madera - 4\" x 6\"", "codigo": "MAD-GEN", "marca": "", "descripcion": "", "categoria": "Otra", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_113", "nombre": "Martillo", "codigo": "MAR-GEN", "marca": "", "descripcion": "Acero forjado", "categoria": "Manual", "cantidad": 6, "disponible": 6, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_114", "nombre": "Martillo de caucho tipo chapulín - Grande", "codigo": "MAR-CAU", "marca": "", "descripcion": "Cabeza de caucho - Mango antideslizante", "categoria": "Manual", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_115", "nombre": "Martillo de caucho tipo chapulín - Pequeño", "codigo": "MAR-CAU", "marca": "", "descripcion": "Cabeza de caucho - Mango antideslizante", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_116", "nombre": "Mezcladora de concreto (trompo) - ID 0532", "codigo": "TRO-####", "marca": "Maquitec", "descripcion": "Capacidad 2 bultos - Gasolina - 9 HP", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Maquitec M2 - Cap. máx 500 L - Cap. mezcla 390 L"}, {"id": "inv_117", "nombre": "Mezcladora de concreto (trompo) - ID 0531", "codigo": "TRO-####", "marca": "Maquitec", "descripcion": "Capacidad 2 bultos - Diésel - 10 HP", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "Maquitec M2 - Cap. máx 500 L - Cap. mezcla 390 L"}, {"id": "inv_118", "nombre": "Molde cilíndrico para concreto tipo camisa", "codigo": "MOL-CIL", "marca": "", "descripcion": "Acero galvanizado - 6\" x 12\" - Norma NTC 550", "categoria": "Otra", "cantidad": 16, "disponible": 16, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_119", "nombre": "Mosquetón - Cierre automático triple acción", "codigo": "MOS-GEN", "marca": "", "descripcion": "Acero forjado - Bloqueo triple acción - Res. 5000 lb - ANSI Z359.12", "categoria": "Seguridad", "cantidad": 12, "disponible": 12, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_120", "nombre": "Motobomba - 2\" - Gasolina - 30 m³/h", "codigo": "MOT-BOM", "marca": "XYoko", "descripcion": "Bomba autocebante - Motor 5,5 HP - Altura máx 26 m", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_121", "nombre": "Motobomba - 3\" - Gasolina - 60 m³/h", "codigo": "MOT-BOM", "marca": "XYoko", "descripcion": "Bomba autocebante - Motor 6,5 HP - Altura máx 28 m", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_122", "nombre": "Mini motosierra eléctrica - Inalámbrica", "codigo": "MIN-MOS", "marca": "(pendiente)", "descripcion": "Batería Li-ion - Espada 6\" - Cadena de acero", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_123", "nombre": "Mototool - 1/4\"", "codigo": "MOT-TOO", "marca": "Truper", "descripcion": "Mototool rotativo - Cuadrante 1/4\" - Multifunción", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_124", "nombre": "Nivel - 10\"", "codigo": "NIV-GEN", "marca": "", "descripcion": "Aluminio - 3 viales", "categoria": "Medición", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_125", "nombre": "Nivel - 39\"", "codigo": "NIV-GEN", "marca": "", "descripcion": "Aluminio - 3 viales", "categoria": "Medición", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_126", "nombre": "Pala - N° 4", "codigo": "PAL-GEN", "marca": "", "descripcion": "Acero - Mango madera", "categoria": "Manual", "cantidad": 18, "disponible": 18, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_127", "nombre": "Pala cuadrada", "codigo": "PAL-GEN", "marca": "", "descripcion": "Acero - Mango madera", "categoria": "Manual", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_128", "nombre": "Paladraga", "codigo": "PAL-GEN", "marca": "", "descripcion": "Acero - Mango madera", "categoria": "Manual", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_129", "nombre": "Palín plano", "codigo": "PAL-GEN", "marca": "", "descripcion": "Acero - Palín plano - Mango madera", "categoria": "Manual", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_130", "nombre": "Palustre - Grande", "codigo": "PLU-GEN", "marca": "", "descripcion": "Acero - 8\" - Mango madera", "categoria": "Manual", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_131", "nombre": "Palustre - Pequeño", "codigo": "PLU-GEN", "marca": "", "descripcion": "Acero - 6\" - Mango madera", "categoria": "Manual", "cantidad": 8, "disponible": 8, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_132", "nombre": "Paral metálico para formaleta", "codigo": "PAR-MET", "marca": "", "descripcion": "Acero galvanizado - Telescópico - Soporte vertical para encofrado de losas", "categoria": "Otra", "cantidad": 20, "disponible": 20, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_133", "nombre": "Perro para guaya - 3/8\"", "codigo": "PER-GUA", "marca": "", "descripcion": "Acero galvanizado - Sujetador para cable de acero 3/8\"", "categoria": "Otra", "cantidad": 22, "disponible": 22, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_134", "nombre": "Pica", "codigo": "PIC-GEN", "marca": "", "descripcion": "Acero - Doble punta - Mango madera", "categoria": "Manual", "cantidad": 8, "disponible": 8, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_135", "nombre": "Pinza de presión tipo hombre solo", "codigo": "PIN-PRE", "marca": "", "descripcion": "Acero Cr-V - Mordaza autoblocante - Tipo Vise-Grip", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_136", "nombre": "Pisón", "codigo": "PIS-GEN", "marca": "", "descripcion": "Acero - Para compactación manual", "categoria": "Manual", "cantidad": 10, "disponible": 10, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_137", "nombre": "Pistola de impacto", "codigo": "PIT-IMP", "marca": "DeWalt", "descripcion": "Pistola neumática - Cuadrante 1/2\"", "categoria": "Manual", "cantidad": 7, "disponible": 7, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_138", "nombre": "Planta eléctrica - 2500 W - Azul - ID 0536", "codigo": "PLA-####", "marca": "Gener", "descripcion": "Gasolina - Motor 4 tiempos - 5,5 HP - Tanque 15 L", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_139", "nombre": "Planta eléctrica - 2500 W - Roja - ID 0533", "codigo": "PLA-####", "marca": "FORTE", "descripcion": "Gasolina - Motor 4 tiempos - 5,5 HP - Tanque 15 L", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_140", "nombre": "Planta eléctrica - 2500 W - Roja - ID 0534", "codigo": "PLA-####", "marca": "(pendiente)", "descripcion": "Gasolina - Motor 4 tiempos - 5,5 HP - Tanque 15 L", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_141", "nombre": "Planta eléctrica - 3200 W - Negra", "codigo": "PLA-####", "marca": "ARVEJ", "descripcion": "Gasolina - Motor 4 tiempos - 7 HP - Tanque 15 L", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_142", "nombre": "Porra - 2 lb", "codigo": "POR-GEN", "marca": "", "descripcion": "Acero forjado - Mango corto", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_143", "nombre": "Pulidora angular - 4\"", "codigo": "PUL-ANG", "marca": "DeWalt", "descripcion": "1400 W - Disco 4 1/2\" - 11000 RPM", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_144", "nombre": "Pulidora angular - 7\"", "codigo": "PUL-ANG", "marca": "Truper", "descripcion": "2200 W - Disco 7\" - 8500 RPM", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_145", "nombre": "Puntillón - Pequeño", "codigo": "PUN-TIL", "marca": "", "descripcion": "", "categoria": "Otra", "cantidad": 12, "disponible": 12, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_146", "nombre": "Punto ecológico", "codigo": "PUN-ECO", "marca": "", "descripcion": "(compartimientos) - (capacidad L)", "categoria": "Seguridad", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_147", "nombre": "Rabo runcho - 6\"", "codigo": "RAB-RUN", "marca": "", "descripcion": "Lima de acero - 6\" - Mango ergonómico", "categoria": "Manual", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_148", "nombre": "Ratchet - Cuadrante 1/2\"", "codigo": "RAT-GEN", "marca": "Total", "descripcion": "Acero Cr-V - Reversible", "categoria": "Apriete", "cantidad": 5, "disponible": 5, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_149", "nombre": "Ratchet - Cuadrante 1/2\" (Proto)", "codigo": "RAT-GEN", "marca": "Proto", "descripcion": "Acero Cr-V - Reversible", "categoria": "Apriete", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_150", "nombre": "Ratchet extendible - Cuadrante 1/2\"", "codigo": "RAT-EXT", "marca": "", "descripcion": "Acero Cr-V - Mango telescópico - Reversible", "categoria": "Apriete", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_151", "nombre": "Serrucho", "codigo": "SER-GEN", "marca": "", "descripcion": "", "categoria": "Manual", "cantidad": 3, "disponible": 3, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_152", "nombre": "Tablón", "codigo": "TAB-LON", "marca": "", "descripcion": "Madera", "categoria": "Otra", "cantidad": 10, "disponible": 10, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_153", "nombre": "Taladro demoledor", "codigo": "TAL-DEM", "marca": "", "descripcion": "", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_154", "nombre": "Taladro demoledor Total", "codigo": "TAL-DEM", "marca": "Total", "descripcion": "", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_155", "nombre": "Taladro para lámina - 1/2\"", "codigo": "TAL-LAM", "marca": "Black+Decker", "descripcion": "Baja RPM - Alto torque - Reversible", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_156", "nombre": "Taladro para lámina - 3/4\"", "codigo": "TAL-LAM", "marca": "Toolcraft", "descripcion": "Baja RPM - Alto torque - Reversible", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_157", "nombre": "Tanque metálico - 210 L", "codigo": "TAN-MET", "marca": "", "descripcion": "", "categoria": "Otra", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_158", "nombre": "Tanque plástico - 210 L", "codigo": "TAN-PLA", "marca": "", "descripcion": "", "categoria": "Otra", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_159", "nombre": "Tensor para nivelación de stubs", "codigo": "TEN-GEN", "marca": "", "descripcion": "Acero - Doble rosca - Tensión y nivelación de stubs", "categoria": "Otra", "cantidad": 24, "disponible": 24, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_160", "nombre": "Varilla slump - 24\" - 5/8\"", "codigo": "VAR-SLU", "marca": "", "descripcion": "Acero - Punta semiesférica", "categoria": "Manual", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_161", "nombre": "Vibrador eléctrico para concreto - Tipo aguja", "codigo": "VIB-####", "marca": "Maquiequipos", "descripcion": "2 HP - 110V - 11000 RPM - Manguera 4,5 m - Cabezote 25/38 mm", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_162", "nombre": "Polea Sencilla - 3Ton -∅4\"", "codigo": "POL-GEN", "marca": "", "descripcion": "Capacidad de 3 Ton -Ø4\" - Rodamiento balinera", "categoria": "Mecánica", "cantidad": 4, "disponible": 4, "proveedor": "", "factura": "", "valor": "", "observaciones": "una en reparación"}, {"id": "inv_163", "nombre": "Polea Sencilla - 5Ton -∅6\"", "codigo": "POL-GEN", "marca": "", "descripcion": "Capacidad  5Ton - Ø6\"", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_164", "nombre": "Polea Sencilla - Rodamiento cilindrico", "codigo": "POL-GEN", "marca": "", "descripcion": "Polea sencilla con rodamiento tubular", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_165", "nombre": "Aparejo en Segunda - ∅6\"", "codigo": "APA-GEN", "marca": "", "descripcion": "Aparejo- 2 Poleas - Ø6\"", "categoria": "Mecánica", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": "No tiene marcada la capacidad de carga"}, {"id": "inv_166", "nombre": "Diferencial - 1.5Ton", "codigo": "DIF-GEN", "marca": "", "descripcion": "Capacidad 1.5Ton", "categoria": "Mecánica", "cantidad": 2, "disponible": 2, "proveedor": "", "factura": "", "valor": "", "observaciones": "Para mantenimiento"}, {"id": "inv_167", "nombre": "Pluma - 4 Cuerpos -6m a 24m", "codigo": "PLU-GEN", "marca": "", "descripcion": "4 cuerpos - 6m a 24m", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_168", "nombre": "Pluma - 3 Cuerpos -6m a 18m", "codigo": "PLU-GEN", "marca": "", "descripcion": "3 Cuerpos - 6m a 18m - \"pequeña\"", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": "pequeña"}, {"id": "inv_169", "nombre": "Tirfot - Malacate - Serial 1909183", "codigo": "TIR-GEN", "marca": "LEVEP. TRACTOR", "descripcion": "Capacidad 1600kj - Ø11mm - 2019", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_170", "nombre": "Tirfot - Malacate - Serial 909122", "codigo": "TIR-GEN", "marca": "LEVER. TRACTOR", "descripcion": "Capacidad 3200Kg - Ø16mm - 2018", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_171", "nombre": "Tirfot - Malacate - Serial 2304038", "codigo": "TIR-GEN", "marca": "LEVER. TRACTOR", "descripcion": "Capacidad 3200Kg - Ø16mm - 2019", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_172", "nombre": "Tirfot - Malacate - Serial 1909187", "codigo": "TIR-GEN", "marca": "LEVER. TRACTOR", "descripcion": "Capacidad 3200Kg - Ø16mm - 2019", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_173", "nombre": "Mastil - doble sección", "codigo": "MAS-GEN", "marca": "", "descripcion": "2 secciones - para izaje de pluma", "categoria": "Mecánica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_174", "nombre": "Regulador de voltaje  UNITEC 1000W", "codigo": "REG-GEN", "marca": "", "descripcion": "Regulador de voltaje  UNITEC 1000W", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_175", "nombre": "Regulador de voltaje  SAT 360 W", "codigo": "REG-GEN", "marca": "", "descripcion": "Regulador de voltaje  SAT 360 W", "categoria": "Eléctrica", "cantidad": 1, "disponible": 1, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_176", "nombre": "Gafas oscuras spider", "codigo": "GAF-GEN", "marca": "Spider", "descripcion": "", "categoria": "EPP", "cantidad": 96, "disponible": 96, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_177", "nombre": "Guantes de presicion # 10", "codigo": "GUA-GEN", "marca": "THOR", "descripcion": "", "categoria": "EPP", "cantidad": 144, "disponible": 144, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_178", "nombre": "Guantes de vaqueta", "codigo": "GUA-GEN", "marca": "", "descripcion": "", "categoria": "EPP", "cantidad": 36, "disponible": 36, "proveedor": "", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_179", "nombre": "pantalon de jean para hombre", "codigo": "PAN-GEN", "marca": "", "descripcion": "pantalon de jjean para hombre", "categoria": "EPP", "cantidad": 10, "disponible": 10, "proveedor": "oneida zambrano", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_180", "nombre": "pantalon de jean para hombre", "codigo": "PAN-GEN", "marca": "", "descripcion": "pantalon de jjean para hombre", "categoria": "EPP", "cantidad": 10, "disponible": 10, "proveedor": "oneida zambrano", "factura": "", "valor": "", "observaciones": ""}, {"id": "inv_181", "nombre": "camisa de jean para hombre", "codigo": "CAM-GEN", "marca": "", "descripcion": "camisa de jean para hombre", "categoria": "EPP", "cantidad": 10, "disponible": 10, "proveedor": "oneida zambrano", "factura": "", "valor": "", "observaciones": "m m"}, {"id": "inv_182", "nombre": "bota puntera", "codigo": "BOT-GEN", "marca": "nn", "descripcion": "botas punta dielectrica", "categoria": "EPP", "cantidad": 18, "disponible": 18, "proveedor": "bogota", "factura": "", "valor": "", "observaciones": "dotacion que se oidio para el inicio del año 2026"}];
+async function loadInventario(){
+  try{
+    const snap=await db.collection('inventario').get();
+    const firestoreItems=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Merge: start with full local inventory, then overlay any Firestore updates
+    const map={};
+    INVENTARIO_INICIAL.forEach(i=>{map[i.id]={...i};});
+    firestoreItems.forEach(i=>{
+      if(map[i.id]){
+        // Keep Firestore disponible (reflects real movements)
+        map[i.id].disponible=i.disponible;
+        map[i.id].cantidad=i.cantidad;
+      } else {
+        map[i.id]=i;
+      }
+    });
+    inventario=Object.values(map);
+    // If Firestore has fewer items than local, sync missing ones
+    if(isAlmacenista&&firestoreItems.length<INVENTARIO_INICIAL.length){
+      const existingIds=new Set(firestoreItems.map(i=>i.id));
+      const missing=INVENTARIO_INICIAL.filter(i=>!existingIds.has(i.id));
+      if(missing.length>0){
+        const batch=db.batch();
+        missing.forEach(item=>{
+          const ref=db.collection('inventario').doc(item.id);
+          batch.set(ref,{nombre:item.nombre,codigo:item.codigo,categoria:item.categoria,marca:item.marca||'',descripcion:item.descripcion||'',cantidad:item.cantidad,disponible:item.disponible});
+        });
+        await batch.commit();
+      }
+    }
+  }catch(e){inventario=[...INVENTARIO_INICIAL];}
+  renderInv(inventario);loadDashboard();
+}
+
+function catIcon(c){
+  const m={'EPP':'🦺','Dotación':'👕','Seguridad':'🛡️','Mecánica':'⚙️','Eléctrica':'⚡','Manual':'🪛','Apriete':'🔩','Medición':'📏'};
+  return m[c]||'🔧';
+}
+function getBadge(i){
+  if(i.disponible===0)return '<span class="badge out">Agotado</span>';
+  if(i.disponible<=2)return '<span class="badge low">Stock bajo</span>';
+  return '<span class="badge ok">Disponible</span>';
+}
+
+function renderInv(items){
+  const q=(document.getElementById('invSearch')||{}).value||'';
+  let f=items;
+  if(currentInvCat)f=f.filter(i=>i.categoria===currentInvCat);
+  if(q)f=f.filter(i=>(i.nombre||'').toLowerCase().includes(q.toLowerCase())||(i.codigo||'').toLowerCase().includes(q.toLowerCase())||(i.marca||'').toLowerCase().includes(q.toLowerCase()));
+  const list=document.getElementById('invList');
+  document.getElementById('invStats').textContent=f.length+' artículos';
+  list.innerHTML=f.length?f.map(i=>`
+    <div class="item-row" onclick="showItemDetail('${i.id}')">
+      <div class="item-ico">${catIcon(i.categoria)}</div>
+      <div style="flex:1;min-width:0">
+        <div class="item-name">${i.nombre}</div>
+        <div class="item-sub">${i.categoria} · ${i.codigo||''} ${i.marca?'· '+i.marca:''} · ${i.cantidad} total</div>
+      </div>
+      ${getBadge(i)}
+    </div>`).join(''):'<div class="no-results">No se encontraron artículos</div>';
+}
+function filterInvCat(btn,cat){currentInvCat=cat;document.getElementById('scInventario').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInv(inventario);}
+function filterInv(q){renderInv(inventario);}
+
+function showItemDetail(id){
+  const item=inventario.find(i=>i.id===id);if(!item)return;
+  const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id&&(m.cantPendiente||0)>0);
+  alert(`${item.nombre}\n\nCódigo: ${item.codigo||'—'}\nMarca: ${item.marca||'—'}\nCategoría: ${item.categoria}\nDescripción: ${item.descripcion||'—'}\nTotal: ${item.cantidad}\nDisponible: ${item.disponible}\nAsignado a ${asig.length} trabajador(es)`);
+}
+
+// ---- DASHBOARD ----
+function loadDashboard(){
+  document.getElementById('stTotal').textContent=inventario.length;
+  document.getElementById('stDisp').textContent=inventario.filter(i=>i.disponible>0).length;
+  document.getElementById('stOut').textContent=inventario.filter(i=>i.disponible===0&&i.cantidad>0).length;
+  document.getElementById('stLow').textContent=inventario.filter(i=>i.disponible>0&&i.disponible<=2).length;
+  const alerts=inventario.filter(i=>i.disponible<=2).slice(0,5);
+  document.getElementById('alertList').innerHTML=alerts.length?alerts.map(i=>`<div class="alert"><div class="alert-name">${i.nombre}</div><div class="alert-sub">${i.disponible===0?'Agotado':'Stock bajo'} · ${i.disponible} disp.</div></div>`).join(''):'<div class="no-results">Sin alertas 👍</div>';
+  loadPendientes();
+}
+async function loadPendientes(){
+  const pends=movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).slice(0,5);
+  document.getElementById('pendList').innerHTML=pends.length?pends.map(p=>`<div class="pend"><div class="pend-name">${p.trabajador||'—'}</div><div class="pend-det">${p.herrNombre||''} · ${p.obra||''} · ${p.cantPendiente||p.cantidad} unid.</div><div class="pend-days">📅 ${p.fechaSalida||p.fecha?new Date(p.fechaSalida||p.fecha).toLocaleDateString('es-CO'):'—'}</div></div>`).join(''):'<div class="no-results">Sin pendientes 👍</div>';
+}
+
+// ---- MOVIMIENTOS ----
+async function loadMovimientos(){
+  try{
+    const snap=await db.collection('movimientos').orderBy('fecha','desc').limit(100).get();
+    movimientos=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){movimientos=[];}
+  renderHistorial(movimientos);
+  loadDashboard();
+}
+
+function renderHistorial(movs){
+  const f=currentHistCat?movs.filter(m=>m.tipo===currentHistCat):movs;
+  const t={entrada:{cls:'e',ico:'📥',pre:'+'},salida:{cls:'s',ico:'📤',pre:'-'},devolucion:{cls:'d',ico:'↩️',pre:'+'}};
+  document.getElementById('histList').innerHTML=f.length?f.map(m=>{
+    const x=t[m.tipo]||t.salida;
+    const fecha=m.fechaSalida||m.fechaIngreso||m.fecha;
+    const fechaStr=fecha?new Date(fecha).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}):'';
+    const meta=m.tipo==='salida'?`${m.trabajador||''} · CC ${m.cedula||''} · ${m.obra||''}`:m.tipo==='devolucion'?`${m.trabajador||''} devolvió`:(m.proveedor||'Entrada');
+    return `<div class="mov-row"><div class="mov-dot ${x.cls}">${x.ico}</div><div style="flex:1;min-width:0"><div class="mov-name">${m.herrNombre||m.nombre||'—'} ×${m.cantidad}</div><div class="mov-meta">${meta}</div><div class="mov-meta">${fechaStr}</div></div><div class="mov-qty ${x.cls}">${x.pre}${m.cantidad}</div></div>`;
+  }).join(''):'<div class="no-results">Sin movimientos aún</div>';
+}
+function filterHistCat(btn,cat){currentHistCat=cat;document.getElementById('scHistorial').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderHistorial(movimientos);}
+
+// ---- ASIGNADOS ----
+function loadTrabajadores(){
+  const map={};
+  movimientos.filter(m=>m.tipo==='salida').forEach(m=>{
+    const k=m.cedula||'';if(!k)return;
+    if(!map[k])map[k]={nombre:m.trabajador||'—',cedula:k,email:m.email||'',items:[],obra:m.obra||''};
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===k&&d.herrId===m.herrId);
+    const devTotal=devs.reduce((s,d)=>s+(d.cantidad||0),0);
+    const pendiente=(m.cantidad||0)-devTotal;
+    if(pendiente>0) map[k].items.push({...m,cantPendiente:pendiente});
+  });
+  const workers=Object.values(map).filter(t=>t.items.length>0);
+  const list=document.getElementById('trabList');
+  if(!workers.length){list.innerHTML='<div class="no-results">Ningún trabajador con asignaciones activas</div>';return;}
+  list.innerHTML=workers.map(t=>{
+    const ini=(t.nombre||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    return `<div class="worker-row" onclick="showTrabajadorDetail('${t.cedula}')">
+      <div class="worker-ava">${ini}</div>
+      <div style="flex:1;min-width:0"><div class="worker-name">${t.nombre}</div><div class="worker-sub">CC ${t.cedula} · ${t.obra}</div></div>
+      <span class="worker-count">${t.items.length} ítem(s)</span>
+    </div>`;
+  }).join('');
+}
+function filterTrabajadores(q){
+  if(!q){loadTrabajadores();return;}
+  const map={};
+  movimientos.filter(m=>m.tipo==='salida').forEach(m=>{
+    const k=m.cedula||'';if(!k)return;
+    if(!map[k])map[k]={nombre:m.trabajador||'—',cedula:k,items:[]};
+    map[k].items.push(m);
+  });
+  const f=Object.values(map).filter(t=>(t.nombre||'').toLowerCase().includes(q.toLowerCase())||t.cedula.includes(q));
+  const list=document.getElementById('trabList');
+  list.innerHTML=f.length?f.map(t=>{
+    const ini=(t.nombre||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    return `<div class="worker-row" onclick="showTrabajadorDetail('${t.cedula}')">
+      <div class="worker-ava">${ini}</div>
+      <div style="flex:1;min-width:0"><div class="worker-name">${t.nombre}</div><div class="worker-sub">CC ${t.cedula}</div></div>
+    </div>`;
+  }).join(''):'<div class="no-results">No encontrado</div>';
+}
+
+function showTrabajadorDetail(cedula){
+  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula);
+  if(!salidas.length)return;
+  const trab=salidas[0];
+  const items=salidas.map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+  }).filter(s=>s.cantPendiente>0);
+  const devoluciones=movimientos.filter(m=>m.tipo==='devolucion'&&m.cedula===cedula);
+  const tienePendiente=items.length>0;
+  document.getElementById('modalTrabNombre').textContent=trab.trabajador||'Trabajador';
+  const body=document.getElementById('modalTrabBody');
+
+  // Header card
+  body.innerHTML=`
+    <div class="card">
+      <div class="detail-row"><span class="detail-key">Nombre</span><span class="detail-val">${trab.trabajador||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Cédula</span><span class="detail-val">${trab.cedula||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Obra</span><span class="detail-val">${trab.obra||'—'}</span></div>
+    </div>
+    ${!tienePendiente?'<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr)">Sin artículos pendientes</div></div>':''}
+  `;
+
+  // Pending items
+  if(items.length){
+    const t=document.createElement('div');t.className='sec-title';t.style.marginTop='4px';
+    t.textContent='⏳ Artículos pendientes ('+items.length+')';
+    body.appendChild(t);
+    items.forEach(i=>{
+      const div=document.createElement('div');
+      div.className='pend';div.style.borderLeft='3px solid var(--rd)';
+      const fecha=i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—';
+      div.innerHTML='<div class="pend-name">'+(i.herrNombre||'—')+'</div>'
+        +'<div class="pend-det">'+(i.cantPendiente)+' unid. · '+(i.categoria||'')+'</div>'
+        +'<div class="pend-days">📤 Salida: '+fecha+'</div>';
+      const btnWrap=document.createElement('div');
+      btnWrap.style.cssText='display:flex;gap:6px;margin-top:7px';
+      if(i.foto){const b=document.createElement('button');b.textContent='📷 Ver foto entrega';b.style.cssText='flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer';b.addEventListener('click',()=>verImagen(i.foto,false));btnWrap.appendChild(b);}
+      if(i.firma){const b=document.createElement('button');b.textContent='✍️ Ver firma entrega';b.style.cssText='flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer';b.addEventListener('click',()=>verImagen(i.firma,true));btnWrap.appendChild(b);}
+      if(btnWrap.children.length)div.appendChild(btnWrap);
+      body.appendChild(div);
+    });
+  }
+
+  // Devoluciones
+  if(devoluciones.length){
+    const t=document.createElement('div');t.className='sec-title';t.style.marginTop='14px';
+    t.textContent='✅ Devoluciones ('+devoluciones.length+')';
+    body.appendChild(t);
+    devoluciones.forEach(d=>{
+      const div=document.createElement('div');
+      div.className='pend';div.style.borderLeft='3px solid var(--gr)';
+      const fecha=d.fechaDevolucion||d.fecha?new Date(d.fechaDevolucion||d.fecha).toLocaleDateString('es-CO'):'—';
+      div.innerHTML='<div class="pend-name">'+(d.herrNombre||'—')+'</div>'
+        +'<div class="pend-det">'+(d.cantidad||0)+' unid. · Estado: '+(d.estado||'—')+'</div>'
+        +'<div class="pend-days" style="background:var(--grl);color:var(--gr)">✅ Devuelto: '+fecha+'</div>';
+      const btnWrap=document.createElement('div');
+      btnWrap.style.cssText='display:flex;gap:6px;margin-top:7px';
+      if(d.foto){const b=document.createElement('button');b.textContent='📷 Ver foto devolución';b.style.cssText='flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer';b.addEventListener('click',()=>verImagen(d.foto,false));btnWrap.appendChild(b);}
+      if(d.firma){const b=document.createElement('button');b.textContent='✍️ Ver firma devolución';b.style.cssText='flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer';b.addEventListener('click',()=>verImagen(d.firma,true));btnWrap.appendChild(b);}
+      if(btnWrap.children.length)div.appendChild(btnWrap);
+      body.appendChild(div);
+    });
+  }
+
+  document.getElementById('modalTrabajador').classList.add('open');
+}
+
+function buscarDevPorCedula(){
+  const cedula=document.getElementById('devCedBuscar').value.trim();
+  if(!cedula){alert('Ingresa la cédula');return;}
+  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula).map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+  }).filter(s=>s.cantPendiente>0);
+  const trabInfo=document.getElementById('devTrabInfo');
+  const itemsList=document.getElementById('devItemsList');
+  const devForm=document.getElementById('devForm');
+  devForm.style.display='none';
+  devSelected=null;
+  if(!salidas.length){
+    trabInfo.style.display='none';
+    itemsList.style.display='none';
+    alert('No se encontraron artículos pendientes para la cédula: '+cedula);
+    return;
+  }
+  devTrabActual={cedula,nombre:salidas[0].trabajador||'—',email:salidas[0].email||''};
+  document.getElementById('devTrabNombre').textContent=devTrabActual.nombre;
+  document.getElementById('devTrabCed').textContent='CC '+cedula;
+  trabInfo.style.display='block';
+  itemsList.style.display='block';
+  const _devContainer=document.getElementById('devItemsContainer');
+  _devContainer.innerHTML='';
+  salidas.forEach(function(s){
+    const _div=document.createElement('div');
+    _div.className='pend';
+    _div.style.cssText='cursor:pointer;border-left:3px solid var(--bl);margin-bottom:8px';
+    const _fecha=s.fechaSalida||s.fecha?new Date(s.fechaSalida||s.fecha).toLocaleDateString('es-CO'):'—';
+    _div.innerHTML='<div class="pend-name">'+(s.herrNombre||'—')+'</div>'
+      +'<div class="pend-det">'+(s.cantPendiente||0)+' unidad(es) pendientes · '+(s.categoria||'')+'</div>'
+      +'<div class="pend-days">📤 Salió: '+_fecha+'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:var(--bl);margin-top:4px">Toca aquí para registrar devolución ›</div>';
+    _div.addEventListener('click',function(){
+      seleccionarDevItem(s.id,s.herrNombre||'',s.cantPendiente||s.cantidad||0,s.cedula||cedula,s.trabajador||'');
+    });
+    _devContainer.appendChild(_div);
+  });
+}
+
+function seleccionarDevItem(movId,nombre,cantPend,cedula,trabajador){
+  devSelected={movId,nombre,cantPend:parseInt(cantPend)||1,cedula,trabajador};
+  document.getElementById('devItemNombre').textContent=nombre;
+  document.getElementById('devItemDetalle').textContent=trabajador+' · CC '+cedula+' · '+cantPend+' unid. pendientes';
+  document.getElementById('devCant').value=cantPend;
+  document.getElementById('devCant').max=cantPend;
+  document.getElementById('devForm').style.display='block';
+  document.getElementById('devForm').scrollIntoView({behavior:'smooth'});
+  initSig('sigDev');
+}
+function cancelarDev(){
+  devSelected=null;
+  document.getElementById('devForm').style.display='none';
+  clearSig('sigDev');
+}
+
+// ---- VALIDACIÓN SALIDA ----
+function setupSalidaValidation(){
+  ['salBuscar','salTrab','salCed','salFecha'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('input',checkSalidaReqs);
+    if(el)el.addEventListener('change',checkSalidaReqs);
+  });
+  const sigPad=document.getElementById('sigSal');
+  if(sigPad){sigPad.addEventListener('mouseup',checkSalidaReqs);sigPad.addEventListener('touchend',checkSalidaReqs);}
+}
+function checkSalidaReqs(){
+  const artOk=document.getElementById('salBuscar').value.trim()!=='';
+  const trabOk=document.getElementById('salTrab').value.trim()!=='';
+  const cedOk=document.getElementById('salCed').value.trim()!=='';
+  const fechaOk=document.getElementById('salFecha').value!=='';
+  const fotoOk=document.getElementById('prevSal').style.display!=='none';
+  const firmaOk=getSigData('sigSal')!==null;
+  const btn=document.getElementById('btnSalida');
+  const missing=[];
+  if(!artOk)missing.push('artículo');
+  if(!trabOk)missing.push('trabajador');
+  if(!cedOk)missing.push('cédula');
+  if(!fechaOk)missing.push('fecha');
+  if(!fotoOk)missing.push('foto');
+  if(!firmaOk)missing.push('firma');
+  const statusDiv=document.getElementById('salReqStatus');
+  if(missing.length){
+    btn.disabled=true;
+    statusDiv.style.display='block';
+    document.getElementById('salReqList').textContent=missing.join(', ');
+  } else {
+    btn.disabled=false;
+    statusDiv.style.display='none';
+  }
+}
+
+function getPhotoB64(imgId){const img=document.getElementById(imgId);return img&&img.style.display!=='none'?img.src:null;}
+
+async function registrarEntrada(){
+  if(!isAlmacenista)return;
+  const herrNombre=document.getElementById('entBuscar').value.trim();
+  const herrId=document.getElementById('entHiddenId').value;
+  const cant=parseInt(document.getElementById('entCant').value)||0;
+  const fecha=document.getElementById('entFecha').value;
+  if(!herrNombre){alert('Selecciona o escribe un artículo');return;}
+  if(cant<1){alert('Cantidad debe ser mayor a 0');return;}
+  if(!fecha){alert('Ingresa la fecha de ingreso');return;}
+  const btn=document.querySelector('#tEnt .btn.primary');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const data={
+    tipo:'entrada',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,
+    codigo:document.getElementById('entCodigo').value,
+    marca:document.getElementById('entMarca').value,
+    descripcion:document.getElementById('entDesc').value,
+    proveedor:document.getElementById('entProv').value,
+    factura:document.getElementById('entFact').value,
+    valor:document.getElementById('entValor').value,
+    fechaIngreso:fecha,
+    observaciones:document.getElementById('entObs').value,
+    foto:getPhotoB64('prevEnt')
+  };
+  const res=await guardarMov(data);
+  if(herrId){
+    const item=inventario.find(i=>i.id===herrId);
+    if(item){
+      item.cantidad+=cant;item.disponible+=cant;
+      try{await db.collection('inventario').doc(herrId).update({cantidad:item.cantidad,disponible:item.disponible});}catch(e){}
+    }
+  }
+  btn.innerHTML='✓ Registrar entrada al almacén';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Entrada registrada!';
+  document.getElementById('succSub').textContent=cant+' × '+herrNombre;
+  document.getElementById('succNote').textContent=res==='offline'?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  ['entBuscar','entHiddenId','entCodigo','entMarca','entDesc','entProv','entFact','entValor','entObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('entCant').value='1';
+  document.getElementById('entFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('prevEnt').style.display='none';document.getElementById('pbEnt').style.display='block';
+}
+
+async function registrarSalida(){
+  if(!isAlmacenista)return;
+  const herrNombre=document.getElementById('salBuscar').value.trim();
+  const herrId=document.getElementById('salHiddenId').value;
+  const cant=parseInt(document.getElementById('salCant').value)||0;
+  const trab=document.getElementById('salTrab').value.trim();
+  const ced=document.getElementById('salCed').value.trim();
+  const fecha=document.getElementById('salFecha').value;
+  const foto=getPhotoB64('prevSal');
+  const firma=getSigData('sigSal');
+  if(!herrNombre||!trab||!ced||!fecha||!foto||!firma){checkSalidaReqs();alert('Completa todos los campos obligatorios (foto y firma son requeridas)');return;}
+  const itemSal=inventario.find(i=>i.id===herrId);
+  if(itemSal&&(itemSal.disponible||0)<=0){alert('⚠️ Este artículo no tiene stock disponible. No se puede registrar la salida.');return;}
+  if(itemSal&&cant>(itemSal.disponible||0)){alert(`⚠️ Solo hay ${itemSal.disponible} unidad(es) disponible(s). No puedes registrar ${cant}.`);return;}
+  const btn=document.getElementById('btnSalida');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const data={
+    tipo:'salida',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,cantPendiente:cant,
+    trabajador:trab,cedula:ced,
+    obra:document.getElementById('salObra').value,
+    fechaSalida:fecha,
+    observaciones:document.getElementById('salObs').value,
+    firma,foto
+  };
+  const res=await guardarMov(data);
+  if(herrId){
+    const item=inventario.find(i=>i.id===herrId);
+    if(item&&item.disponible>=cant){item.disponible-=cant;try{await db.collection('inventario').doc(herrId).update({disponible:item.disponible});}catch(e){}}
+  }
+  btn.innerHTML='✓ Registrar salida de almacén';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Salida registrada!';
+  document.getElementById('succSub').textContent=cant+' × '+herrNombre+' → '+trab;
+  document.getElementById('succNote').textContent=res==='offline'?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  ['salBuscar','salHiddenId','salTrab','salCed','salObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('salCant').value='1';
+  document.getElementById('salFecha').value=new Date().toISOString().split('T')[0];
+  clearSig('sigSal');
+  document.getElementById('prevSal').style.display='none';document.getElementById('pbSal').style.display='block';
+  checkSalidaReqs();
+}
+
+async function registrarDevolucion(){
+  if(!isAlmacenista)return;
+  if(!devSelected){alert('Selecciona un artículo para devolver');return;}
+  const cant=parseInt(document.getElementById('devCant').value)||0;
+  const fecha=document.getElementById('devFecha').value;
+  const firma=getSigData('sigDev');
+  if(cant<1){alert('Cantidad debe ser mayor a 0');return;}
+  if(!fecha){alert('Ingresa la fecha de devolución');return;}
+  if(!firma){alert('Se requiere la firma de quien devuelve');return;}
+  const btn=document.querySelector('#tDev .btn.primary');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const data={
+    tipo:'devolucion',
+    herrId:devSelected.movId,
+    herrNombre:devSelected.nombre,nombre:devSelected.nombre,
+    cantidad:cant,trabajador:devSelected.trabajador,cedula:devSelected.cedula,
+    estado:document.getElementById('devEstado').value,
+    fechaDevolucion:fecha,
+    observaciones:document.getElementById('devObs').value,
+    firma,foto:getPhotoB64('prevDev')
+  };
+  const res=await guardarMov(data);
+  const item=inventario.find(i=>i.nombre===devSelected.nombre);
+  if(item){item.disponible+=cant;try{await db.collection('inventario').doc(item.id).update({disponible:item.disponible});}catch(e){}}
+  btn.innerHTML='✓ Confirmar devolución';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Devolución registrada!';
+  document.getElementById('succSub').textContent=cant+' × '+devSelected.nombre;
+  document.getElementById('succNote').textContent=res==='offline'?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  devSelected=null;devTrabActual=null;
+  document.getElementById('devForm').style.display='none';
+  document.getElementById('devItemsList').style.display='none';
+  document.getElementById('devTrabInfo').style.display='none';
+  document.getElementById('devCedBuscar').value='';
+  document.getElementById('devFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('devObs').value='';
+  clearSig('sigDev');
+  document.getElementById('prevDev').style.display='none';document.getElementById('pbDev').style.display='block';
+}
+
+// ---- IMPORTAR/EXPORTAR EXCEL ----
+async function importarExcel(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets['ENTRADAS']||wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let imported=0;
+      const batch=db.batch();
+      for(let i=1;i<data.length;i++){
+        const row=data[i];
+        if(!row[1])continue;
+        const item={
+          nombre:String(row[1]||'').trim(),
+          codigo:String(row[2]||'').trim(),
+          marca:String(row[3]||'').trim(),
+          descripcion:String(row[4]||'').trim(),
+          categoria:String(row[5]||'Herramientas').trim(),
+          cantidad:parseInt(row[6])||0,
+          disponible:parseInt(row[6])||0,
+          proveedor:String(row[7]||'').trim(),
+          factura:String(row[8]||'').trim(),
+          valor:String(row[9]||'').trim(),
+        };
+        if(!item.nombre)continue;
+        const id='imp_'+i;
+        item.id=id;
+        const existing=inventario.find(x=>x.nombre===item.nombre);
+        if(!existing){
+          inventario.push(item);
+          const ref=db.collection('inventario').doc(id);
+          batch.set(ref,item);
+          imported++;
+        }
+      }
+      await batch.commit();
+      renderInv(inventario);loadDashboard();
+      alert(`✅ Importación completada: ${imported} artículos nuevos agregados`);
+    }catch(err){alert('Error al importar: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function exportarExcel(){
+  const wb=XLSX.utils.book_new();
+  // Sheet INVENTARIO
+  const invData=[
+    ['N°','Nombre Herramienta','Código','Marca','Descripción','Categoría','Cantidad Total','Disponible','Estado']
+  ];
+  inventario.forEach((item,i)=>{
+    const estado=item.disponible===0?'AGOTADO':item.disponible<=2?'STOCK BAJO':'DISPONIBLE';
+    invData.push([i+1,item.nombre,item.codigo||'',item.marca||'',item.descripcion||'',item.categoria,item.cantidad,item.disponible,estado]);
+  });
+  const wsInv=XLSX.utils.aoa_to_sheet(invData);
+  XLSX.utils.book_append_sheet(wb,wsInv,'INVENTARIO');
+  // Sheet ENTRADAS
+  const entData=[['N°','Fecha Ingreso','Nombre Herramienta','Código','Marca','Descripción','Categoría','Cantidad','Proveedor','N° Factura','$ Valor unid','Observaciones']];
+  movimientos.filter(m=>m.tipo==='entrada').forEach((m,i)=>{
+    entData.push([i+1,m.fechaIngreso||m.fecha?.split('T')[0]||'',m.herrNombre||m.nombre||'',m.codigo||'',m.marca||'',m.descripcion||'',m.categoria||'',m.cantidad,m.proveedor||'',m.factura||'',m.valor||'',m.observaciones||'']);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(entData),'ENTRADAS');
+  // Sheet SALIDAS
+  const salData=[['N°','Fecha Salida','Nombre Herramienta','Categoría','Cantidad','Responsable','Cédula','Obra/Área','Correo','Observaciones','Cant. Pendiente']];
+  movimientos.filter(m=>m.tipo==='salida').forEach((m,i)=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===m.cedula&&d.herrId===m.herrId);
+    const devTotal=devs.reduce((s,d)=>s+(d.cantidad||0),0);
+    const pend=Math.max(0,(m.cantidad||0)-devTotal);
+    salData.push([i+1,m.fechaSalida||m.fecha?.split('T')[0]||'',m.herrNombre||'',m.categoria||'',m.cantidad,m.trabajador||'',m.cedula||'',m.obra||'',m.email||'',m.observaciones||'',pend]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(salData),'SALIDAS');
+  // Sheet DEVOLUCIONES
+  const devData=[['N°','Fecha Devolución','Nombre Herramienta','Cantidad','Responsable','Cédula','Estado','Observaciones']];
+  movimientos.filter(m=>m.tipo==='devolucion').forEach((m,i)=>{
+    devData.push([i+1,m.fechaDevolucion||m.fecha?.split('T')[0]||'',m.herrNombre||'',m.cantidad,m.trabajador||'',m.cedula||'',m.estado||'',m.observaciones||'']);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(devData),'DEVOLUCIONES');
+  const fecha=new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
+  XLSX.writeFile(wb,`SERSAN_Almacen_${fecha}.xlsx`);
+}
+
+// ---- FIRMA ----
+function initSig(id){
+  const c=document.getElementById(id);if(!c)return;
+  const ctx=c.getContext('2d');let drawing=false;
+  ctx.strokeStyle='#1A1A1A';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+  function pos(e){const r=c.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(c.width/r.width),y:(s.clientY-r.top)*(c.height/r.height)};}
+  c.addEventListener('mousedown',e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  c.addEventListener('mousemove',e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();checkSalidaReqs();});
+  c.addEventListener('mouseup',()=>{drawing=false;checkSalidaReqs();});
+  c.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
+  c.addEventListener('touchend',()=>{drawing=false;checkSalidaReqs();});
+}
+function clearSig(id){const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);checkSalidaReqs();}
+function getSigData(id){const c=document.getElementById(id);if(!c)return null;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;return d.some((v,i)=>i%4===3&&v>0)?c.toDataURL('image/jpeg',0.4):null;}
+
+function prevPhoto(input,previewId,boxId){
+  const file=input.files[0];if(!file)return;
+  if(file.type.startsWith('image/')){
+    const r=new FileReader();
+    r.onload=e=>{
+      // Compress image before storing
+      const tmpImg=new Image();
+      tmpImg.onload=()=>{
+        const canvas=document.createElement('canvas');
+        const MAX=600;
+        let w=tmpImg.width,h=tmpImg.height;
+        if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
+        else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(tmpImg,0,0,w,h);
+        const compressed=canvas.toDataURL('image/jpeg',0.5);
+        const img=document.getElementById(previewId);
+        img.src=compressed;img.style.display='block';
+        document.getElementById(boxId).style.display='none';
+        checkSalidaReqs();
+      };
+      tmpImg.src=e.target.result;
+    };
+    r.readAsDataURL(file);
+  } else {
+    document.getElementById(boxId).querySelector('p').textContent='📄 '+file.name;
+    checkSalidaReqs();
+  }
+}
+function verImagen(src,esFirma){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:'+(esFirma?'rgba(240,240,240,0.98)':'rgba(0,0,0,0.92)')+';z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick=()=>document.body.removeChild(overlay);
+  if(esFirma){
+    const lbl=document.createElement('div');
+    lbl.textContent='✍️ Firma del trabajador';
+    lbl.style.cssText='font-size:12px;font-weight:700;color:#555;margin-bottom:10px';
+    overlay.appendChild(lbl);
+  }
+  const wrap=document.createElement('div');
+  wrap.style.cssText='background:#fff;border-radius:10px;padding:12px;box-shadow:0 2px 16px rgba(0,0,0,0.15)';
+  const img=document.createElement('img');
+  img.src=src;
+  img.style.cssText='max-width:100%;max-height:65vh;border-radius:6px;object-fit:contain;display:block';
+  wrap.appendChild(img);
+  overlay.appendChild(wrap);
+  const close=document.createElement('div');
+  close.textContent='✕ Toca para cerrar';
+  close.style.cssText='margin-top:14px;color:'+(esFirma?'#555':'#fff')+';font-size:11px;font-weight:700;cursor:pointer';
+  overlay.appendChild(close);
+  document.body.appendChild(overlay);
+}
+function verImagenBtn(btn){
+  try{
+    const src=atob(btn.getAttribute('data-img'));
+    const esFirma=btn.textContent.toLowerCase().includes('firma');
+    verImagen(src,esFirma);
+  }catch(e){console.log('Error',e);}
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))document.querySelectorAll('.autocomplete-list').forEach(l=>l.classList.remove('open'));});
+
+function acSearch(input,listId,hiddenId){
+  const q=input.value.toLowerCase().trim();
+  const list=document.getElementById(listId);
+  if(!q){list.classList.remove('open');return;}
+  const isSalida=listId==='salAcList';
+  const matches=inventario.filter(i=>{
+    const nameMatch=(i.nombre||'').toLowerCase().includes(q)||(i.codigo||'').toLowerCase().includes(q);
+    const catMatch=!currentMovCat||i.categoria===currentMovCat;
+    const stockOk=!isSalida||(i.disponible||0)>0;
+    return nameMatch&&catMatch&&stockOk;
+  }).slice(0,12);
+  if(isSalida&&matches.length===0&&q){
+    list.innerHTML='<div class="ac-item" style="color:var(--rd);font-weight:700">⚠️ Sin stock disponible</div>';
+    list.classList.add('open');
+    return;
+  }
+  // Use DOM to avoid quote issues
+  list.innerHTML='';
+  matches.forEach(i=>{
+    const div=document.createElement('div');
+    div.className='ac-item';
+    div.setAttribute('ontouchstart','');
+    const stockColor=(i.disponible||0)<=2?'var(--yl2)':'var(--gr)';
+    div.innerHTML=catIcon(i.categoria)+' '+i.nombre+' <span style="color:'+stockColor+';font-size:9px">('+i.disponible+' disp.)</span>';
+    div.addEventListener('click',function(){
+      selectAcItem(i.id,i.nombre,input.id,listId,hiddenId);
+    });
+    list.appendChild(div);
+  });
+  if(isAlmacenista&&!isSalida){
+    const addDiv=document.createElement('div');
+    addDiv.className='ac-item add-new';
+    addDiv.textContent='➕ Agregar artículo nuevo';
+    addDiv.addEventListener('click',openNuevoItem);
+    list.appendChild(addDiv);
+  }
+  list.classList.add('open');
+}
+
+function acSearchAsig(q){
+  const list=document.getElementById('itemAcAsig');
+  if(!q){list.classList.remove('open');return;}
+  const m=inventario.filter(i=>(i.nombre||'').toLowerCase().includes(q.toLowerCase())).slice(0,10);
+  list.innerHTML=m.map(i=>'<div class="ac-item" onclick="showAsigPorItem(''+i.id+'',''+i.nombre.replace(/'/g,"\'")+'')">'+catIcon(i.categoria)+' '+i.nombre+'</div>').join('');
+  list.classList.add('open');
+}
+
+function selectAcItem(id,nombre,inputId,listId,hiddenId){
+  document.getElementById(inputId).value=nombre;
+  document.getElementById(hiddenId).value=id;
+  document.getElementById(listId).classList.remove('open');
+  if(inputId==='entBuscar'){
+    const item=inventario.find(i=>i.id===id);
+    if(item){
+      document.getElementById('entCodigo').value=item.codigo||'';
+      document.getElementById('entMarca').value=item.marca||'';
+      document.getElementById('entDesc').value=item.descripcion||'';
+    }
+  }
+}
+
+function showAsigPorItem(id,nombre){
+  document.getElementById('itemSearchAsig').value=nombre;
+  document.getElementById('itemAcAsig').classList.remove('open');
+  const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id).map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===s.cedula&&d.herrId===id);
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+  }).filter(s=>s.cantPendiente>0);
+  document.getElementById('itemAsigResult').innerHTML=asig.length?
+    '<div class="sec-title">'+asig.length+' asignación(es) activa(s)</div>'+asig.map(m=>'<div class="pend"><div class="pend-name">'+(m.trabajador||'—')+'</div><div class="pend-det">CC '+(m.cedula||'—')+' · '+(m.obra||'')+' · '+m.cantPendiente+' unid.</div><div class="pend-days">📅 '+(m.fechaSalida||m.fecha?new Date(m.fechaSalida||m.fecha).toLocaleDateString('es-CO'):'—')+'</div></div>').join(''):
+    '<div class="no-results">Nadie tiene este artículo asignado</div>';
+}
+
+function openNuevoItem(){
+  const buscar=document.getElementById('entBuscar');
+  if(buscar)document.getElementById('nuevoNombre').value=buscar.value||'';
+  document.getElementById('modalNuevoItem').classList.add('open');
+}
+
+async function guardarNuevoItem(){
+  const nombre=document.getElementById('nuevoNombre').value.trim();
+  const categoria=document.getElementById('nuevoCategoria').value;
+  const codigo=document.getElementById('nuevoCodigo').value.trim();
+  const marca=document.getElementById('nuevaMarca').value.trim();
+  const descripcion=document.getElementById('nuevaDesc').value.trim();
+  if(!nombre){alert('El nombre es obligatorio');return;}
+  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0};
+  try{
+    const ref=await db.collection('inventario').add(newItem);
+    newItem.id=ref.id;
+  }catch(e){newItem.id='local_'+Date.now();}
+  inventario.push(newItem);
+  renderInv(inventario);
+  closeModal('modalNuevoItem');
+  document.getElementById('entBuscar').value=nombre;
+  document.getElementById('entHiddenId').value=newItem.id;
+  document.getElementById('entCodigo').value=codigo;
+  document.getElementById('entMarca').value=marca;
+  document.getElementById('entDesc').value=descripcion;
+  alert('✅ Artículo agregado: '+nombre);
+}
+
+function buscarPazSalvo(){
+  const cedula=document.getElementById('pazCedula').value.trim();
+  if(!cedula){alert('Ingresa la cédula');return;}
+  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula);
+  const res=document.getElementById('pazResult');
+  if(!salidas.length){res.innerHTML='<div class="card"><div style="font-size:12px;color:var(--tx2)">No se encontraron registros para la cédula <strong>'+cedula+'</strong></div></div>';return;}
+  const trab=salidas[0];
+  const items=salidas.map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+  }).filter(s=>s.cantPendiente>0);
+  if(items.length>0){
+    res.innerHTML='<div class="alert"><div class="alert-name">⚠️ No puede recibir paz y salvo</div><div class="alert-sub">'+(trab.trabajador||'—')+' tiene '+items.length+' artículo(s) pendiente(s)</div></div>'
+      +'<div class="sec-title">Pendientes:</div>'
+      +items.map(i=>'<div class="pend"><div class="pend-name">'+(i.herrNombre||'—')+'</div><div class="pend-det">'+i.cantPendiente+' unidad(es)</div></div>').join('');
+  } else {
+    const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
+    const codigo='PS-'+Date.now().toString(36).toUpperCase();
+    res.innerHTML='<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr);margin-top:3px">'+(trab.trabajador||'—')+' · CC '+cedula+'</div><div style="font-size:10px;color:var(--gr);margin-top:2px">'+fecha+'</div><div style="font-size:9px;color:var(--gr);margin-top:2px">Código: '+codigo+'</div></div>'
+      +(isAlmacenista?'<div class="fg"><label>Nombre completo</label><input type="text" id="pazNombre" value="'+(trab.trabajador||'')+'" placeholder="Nombre completo"/></div>'
+      +'<div class="fg"><label>Correo para enviar</label><input type="email" id="pazEmail" value="'+(trab.email||'')+'" placeholder="correo@ejemplo.com"/></div>'
+      +'<button class="btn yellow" onclick="generarPazYSalvo(''+cedula+'',''+codigo+'')">📧 Generar y enviar Paz y Salvo</button>':'');
+  }
+}
+
+async function generarPazYSalvo(cedula,codigo){
+  const nombre=document.getElementById('pazNombre').value.trim()||cedula;
+  const email=document.getElementById('pazEmail').value.trim();
+  const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
+  if(!email){alert('Ingresa el correo del trabajador');return;}
+  try{await db.collection('pazysalvos').add({cedula,nombre,email,fecha:new Date().toISOString(),codigo});}catch(e){}
+  const body='PAZ Y SALVO - SERSAN INGENIERÍA S.A.S.\n\nEl señor(a): '+nombre+'\nCédula: '+cedula+'\nFecha: '+fecha+'\nCódigo: '+codigo+'\n\nSe encuentra a PAZ Y SALVO con el Almacén SERSAN INGENIERÍA S.A.S.\n\nVerificar en: https://santvel87.github.io/sersan-almacen?paz='+cedula+'\n\n_________________________________\nSERSAN Almacén - SERSAN INGENIERÍA S.A.S.';
+  window.location.href='mailto:'+email+'?subject=Paz y Salvo Almacén SERSAN - '+nombre+'&body='+encodeURIComponent(body);
+}
+</script>
+</body>
+</html>

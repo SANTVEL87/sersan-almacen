@@ -736,9 +736,9 @@ function loadTrabajadores(){
   movimientos.filter(m=>m.tipo==='salida').forEach(m=>{
     const k=m.cedula||'';if(!k)return;
     if(!map[k])map[k]={nombre:m.trabajador||'—',cedula:k,email:m.email||'',items:[],obra:m.obra||''};
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===k&&d.herrId===m.herrId);
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===k&&(d.salidaRef===m.id||d.herrId===m.herrId));
     const devTotal=devs.reduce((s,d)=>s+(d.cantidad||0),0);
-    const pendiente=(m.cantidad||0)-devTotal;
+    const pendiente=Math.max(0,(m.cantPendiente!==undefined?m.cantPendiente:m.cantidad||0)-devTotal);
     if(pendiente>0) map[k].items.push({...m,cantPendiente:pendiente});
   });
   const workers=Object.values(map).filter(t=>t.items.length>0);
@@ -777,9 +777,9 @@ function showTrabajadorDetail(cedula){
   if(!salidas.length)return;
   const trab=salidas[0];
   const items=salidas.map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
     const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+    return {...s,cantPendiente:Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal)};
   }).filter(s=>s.cantPendiente>0);
   const devoluciones=movimientos.filter(m=>m.tipo==='devolucion'&&m.cedula===cedula);
   const tienePendiente=items.length>0;
@@ -845,9 +845,11 @@ function buscarDevPorCedula(){
   const cedula=document.getElementById('devCedBuscar').value.trim();
   if(!cedula){alert('Ingresa la cédula');return;}
   const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula).map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    // Match devoluciones by salidaRef (exact match) or by herrId+cedula
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
     const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+    const pendiente=Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal);
+    return {...s,cantPendiente:pendiente};
   }).filter(s=>s.cantPendiente>0);
   const trabInfo=document.getElementById('devTrabInfo');
   const itemsList=document.getElementById('devItemsList');
@@ -884,7 +886,10 @@ function buscarDevPorCedula(){
 }
 
 function seleccionarDevItem(movId,nombre,cantPend,cedula,trabajador){
-  devSelected={movId,nombre,cantPend:parseInt(cantPend)||1,cedula,trabajador};
+  // Find the herrId from the original salida movement
+  const salidaMov=movimientos.find(m=>m.id===movId);
+  const herrId=salidaMov?salidaMov.herrId:'';
+  devSelected={movId,herrId,nombre,cantPend:parseInt(cantPend)||1,cedula,trabajador};
   document.getElementById('devItemNombre').textContent=nombre;
   document.getElementById('devItemDetalle').textContent=trabajador+' · CC '+cedula+' · '+cantPend+' unid. pendientes';
   document.getElementById('devCant').value=cantPend;
@@ -996,7 +1001,7 @@ async function registrarSalida(){
   const btn=document.getElementById('btnSalida');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const data={
-    tipo:'salida',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,cantPendiente:cant,
+    tipo:'salida',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,cantPendiente:cant,cantOriginal:cant,
     trabajador:trab,cedula:ced,
     obra:document.getElementById('salObra').value,
     fechaSalida:fecha,
@@ -1028,13 +1033,15 @@ async function registrarDevolucion(){
   const fecha=document.getElementById('devFecha').value;
   const firma=getSigData('sigDev');
   if(cant<1){alert('Cantidad debe ser mayor a 0');return;}
+  if(cant>devSelected.cantPend){alert('No puedes devolver más de '+devSelected.cantPend+' unidad(es) pendientes');return;}
   if(!fecha){alert('Ingresa la fecha de devolución');return;}
   if(!firma){alert('Se requiere la firma de quien devuelve');return;}
   const btn=document.querySelector('#tDev .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const data={
     tipo:'devolucion',
-    herrId:devSelected.movId,
+    herrId:devSelected.herrId,
+    salidaRef:devSelected.movId,
     herrNombre:devSelected.nombre,nombre:devSelected.nombre,
     cantidad:cant,trabajador:devSelected.trabajador,cedula:devSelected.cedula,
     estado:document.getElementById('devEstado').value,
@@ -1043,8 +1050,26 @@ async function registrarDevolucion(){
     firma,foto:getPhotoB64('prevDev')
   };
   const res=await guardarMov(data);
-  const item=inventario.find(i=>i.nombre===devSelected.nombre);
-  if(item){item.disponible+=cant;try{await db.collection('inventario').doc(item.id).update({disponible:item.disponible});}catch(e){}}
+  // Update stock in Firestore and local
+  const item=inventario.find(i=>i.id===devSelected.herrId||i.nombre===devSelected.nombre);
+  if(item){
+    item.disponible=Math.min(item.cantidad, item.disponible+cant);
+    try{await db.collection('inventario').doc(item.id).update({disponible:item.disponible});}catch(e){console.log('Stock update error',e);}
+  }
+  // Update cantPendiente on the original salida in Firestore
+  if(devSelected.movId&&navigator.onLine){
+    try{
+      const salidaRef=db.collection('movimientos').doc(devSelected.movId);
+      const salidaDoc=await salidaRef.get();
+      if(salidaDoc.exists){
+        const nuevoPend=Math.max(0,(salidaDoc.data().cantPendiente||salidaDoc.data().cantidad||0)-cant);
+        await salidaRef.update({cantPendiente:nuevoPend});
+        // Update local movimientos array
+        const mov=movimientos.find(m=>m.id===devSelected.movId);
+        if(mov)mov.cantPendiente=nuevoPend;
+      }
+    }catch(e){console.log('CantPendiente update error',e);}
+  }
   btn.innerHTML='✓ Confirmar devolución';btn.disabled=false;
   document.getElementById('succH').textContent='¡Devolución registrada!';
   document.getElementById('succSub').textContent=cant+' × '+devSelected.nombre;
@@ -1345,9 +1370,9 @@ function buscarPazSalvo(){
   if(!salidas.length){res.innerHTML='<div class="card"><div style="font-size:12px;color:var(--tx2)">No se encontraron registros para la cédula <strong>'+cedula+'</strong></div></div>';return;}
   const trab=salidas[0];
   const items=salidas.map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
     const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
+    return {...s,cantPendiente:Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal)};
   }).filter(s=>s.cantPendiente>0);
   if(items.length>0){
     res.innerHTML='<div class="alert"><div class="alert-name">⚠️ No puede recibir paz y salvo</div><div class="alert-sub">'+(trab.trabajador||'—')+' tiene '+items.length+' artículo(s) pendiente(s)</div></div>'

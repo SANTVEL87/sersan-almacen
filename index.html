@@ -461,17 +461,6 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 db.enablePersistence().catch(()=>{});
 
-const ALMACENISTA='sersanalmacen01@gmail.com';
-const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
-
-let currentUser=null,isAlmacenista=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
-let offlineQueue=JSON.parse(localStorage.getItem('sersanQ')||'[]');
-
-window.addEventListener('online',()=>{document.getElementById('offlineBanner').style.display='none';syncQueue();});
-window.addEventListener('offline',()=>{document.getElementById('offlineBanner').style.display='block';});
-
-// ---- AUTH ----
-// Check if this is a paz y salvo verification link
 (async function checkPazVerification(){
   const params=new URLSearchParams(window.location.search);
   const pazCodigo=params.get('paz');
@@ -518,6 +507,19 @@ window.addEventListener('offline',()=>{document.getElementById('offlineBanner').
     return;
   }
 })();
+
+
+const ALMACENISTA='sersanalmacen01@gmail.com';
+const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
+
+let currentUser=null,isAlmacenista=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
+let offlineQueue=JSON.parse(localStorage.getItem('sersanQ')||'[]');
+
+window.addEventListener('online',()=>{document.getElementById('offlineBanner').style.display='none';syncQueue();});
+window.addEventListener('offline',()=>{document.getElementById('offlineBanner').style.display='block';});
+
+// ---- AUTH ----
+// Check if this is a paz y salvo verification link
 
 auth.onAuthStateChanged(user=>{
   if(user){

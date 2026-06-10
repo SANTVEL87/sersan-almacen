@@ -937,13 +937,22 @@ function buscarDevPorCedula(){
   document.getElementById('devTrabCed').textContent='CC '+cedula;
   trabInfo.style.display='block';
   itemsList.style.display='block';
-  document.getElementById('devItemsContainer').innerHTML=salidas.map(s=>`
-    <div class="pend" style="cursor:pointer" onclick="seleccionarDevItem('${s.id}','${(s.herrNombre||'').replace(/'/g,"\\'")}','${s.cantPendiente}','${cedula}','${s.trabajador||''}')">
-      <div class="pend-name">${s.herrNombre||'—'}</div>
-      <div class="pend-det">${s.cantPendiente} unidad(es) pendientes · ${s.categoria||''}</div>
-      <div class="pend-days">📤 Salió: ${s.fechaSalida||s.fecha?new Date(s.fechaSalida||s.fecha).toLocaleDateString('es-CO'):'—'}</div>
-      <div style="font-size:10px;font-weight:700;color:var(--bl);margin-top:4px">Toca para registrar devolución ›</div>
-    </div>`).join('');
+  const _devContainer=document.getElementById('devItemsContainer');
+  _devContainer.innerHTML='';
+  salidas.forEach(function(s){
+    const _div=document.createElement('div');
+    _div.className='pend';
+    _div.style.cssText='cursor:pointer;border-left:3px solid var(--bl);margin-bottom:8px';
+    const _fecha=s.fechaSalida||s.fecha?new Date(s.fechaSalida||s.fecha).toLocaleDateString('es-CO'):'—';
+    _div.innerHTML='<div class="pend-name">'+(s.herrNombre||'—')+'</div>'
+      +'<div class="pend-det">'+(s.cantPendiente||0)+' unidad(es) pendientes · '+(s.categoria||'')+'</div>'
+      +'<div class="pend-days">📤 Salió: '+_fecha+'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:var(--bl);margin-top:4px">Toca aquí para registrar devolución ›</div>';
+    _div.addEventListener('click',function(){
+      seleccionarDevItem(s.id,s.herrNombre||'',s.cantPendiente||s.cantidad||0,s.cedula||cedula,s.trabajador||'');
+    });
+    _devContainer.appendChild(_div);
+  });
 }
 
 function seleccionarDevItem(movId,nombre,cantPend,cedula,trabajador){

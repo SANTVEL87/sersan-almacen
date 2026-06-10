@@ -67,7 +67,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sig-wrap{border:1px solid var(--br);border-radius:9px;overflow:hidden;margin-bottom:10px}
 .sig-header{padding:6px 10px;border-bottom:1px solid var(--br);display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--tx2);background:var(--bg)}
 .sig-clear{font-size:10px;color:var(--bk);cursor:pointer;background:none;border:none;font-weight:700;text-decoration:underline}
-canvas.sig-pad{display:block;width:100%;height:110px;background:var(--wh);cursor:crosshair;touch-action:none}
+canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:crosshair;touch-action:none}
 .btn{width:100%;padding:11px;border-radius:8px;border:1px solid var(--br);background:var(--wh);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--tx);margin-bottom:8px}
 .btn:active{opacity:0.7}
 .btn.primary{background:var(--bk);color:var(--yl);border-color:var(--bk)}
@@ -268,7 +268,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:var(--wh);cursor
       <!-- SALIDA -->
       <div id="tSal" style="display:none">
         <div class="cat-tabs" id="salCatTabs">
-          <button class="ctab active" onclick="setMovCat(this,'Herramientas','sal')">🔧 Herramientas</button>
+          <button class="ctab active" onclick="setMovCat(this,'','sal')">Todos</button>
+          <button class="ctab" onclick="setMovCat(this,'Herramientas','sal')">🔧 Herramientas</button>
           <button class="ctab" onclick="setMovCat(this,'EPP','sal')">🦺 EPP</button>
           <button class="ctab" onclick="setMovCat(this,'Dotación','sal')">👕 Dotación</button>
           <button class="ctab" onclick="setMovCat(this,'Seguridad','sal')">🛡️ Seguridad</button>
@@ -571,9 +572,15 @@ function setMovCat(btn,cat,prefix){
   currentMovCat=cat;
   btn.closest('.cat-tabs').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById(prefix+'Buscar').value='';
-  document.getElementById(prefix+'HiddenId').value='';
-  if(prefix==='ent'){document.getElementById('entCodigo').value='';document.getElementById('entMarca').value='';document.getElementById('entDesc').value='';}
+  const buscar=document.getElementById(prefix+'Buscar');
+  const hidden=document.getElementById(prefix+'HiddenId');
+  if(buscar)buscar.value='';
+  if(hidden)hidden.value='';
+  if(prefix==='ent'){
+    document.getElementById('entCodigo').value='';
+    document.getElementById('entMarca').value='';
+    document.getElementById('entDesc').value='';
+  }
 }
 function setAsigTab(btn,id){
   document.querySelectorAll('#scAsignaciones .tab').forEach(b=>b.classList.remove('active'));
@@ -1150,7 +1157,13 @@ function initSig(id){
   c.addEventListener('touchend',()=>{drawing=false;checkSalidaReqs();});
 }
 function clearSig(id){const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);checkSalidaReqs();}
-function getSigData(id){const c=document.getElementById(id);if(!c)return null;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;return d.some((v,i)=>i%4===3&&v>0)?c.toDataURL('image/jpeg',0.4):null;}
+function getSigData(id){const c=document.getElementById(id);if(!c)return null;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;if(!d.some((v,i)=>i%4===3&&v>0))return null;
+  // Draw on white background
+  const tmpC=document.createElement('canvas');tmpC.width=c.width;tmpC.height=c.height;
+  const tmpCtx=tmpC.getContext('2d');
+  tmpCtx.fillStyle='#ffffff';tmpCtx.fillRect(0,0,tmpC.width,tmpC.height);
+  tmpCtx.drawImage(c,0,0);
+  return tmpC.toDataURL('image/jpeg',0.7);}
 
 function prevPhoto(input,previewId,boxId){
   const file=input.files[0];if(!file)return;
@@ -1183,7 +1196,7 @@ function prevPhoto(input,previewId,boxId){
 }
 function verImagen(src,esFirma){
   const overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:'+(esFirma?'rgba(240,240,240,0.98)':'rgba(0,0,0,0.92)')+';z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+  overlay.style.cssText='position:fixed;inset:0;background:'+(esFirma?'#f0f0f0':'rgba(0,0,0,0.92)')+';z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
   overlay.onclick=()=>document.body.removeChild(overlay);
   if(esFirma){
     const lbl=document.createElement('div');

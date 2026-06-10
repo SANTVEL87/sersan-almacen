@@ -755,164 +755,66 @@ function showTrabajadorDetail(cedula){
     const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
     return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
   }).filter(s=>s.cantPendiente>0);
+  const devoluciones=movimientos.filter(m=>m.tipo==='devolucion'&&m.cedula===cedula);
   const tienePendiente=items.length>0;
   document.getElementById('modalTrabNombre').textContent=trab.trabajador||'Trabajador';
-  document.getElementById('modalTrabBody').innerHTML=`
+  const body=document.getElementById('modalTrabBody');
+
+  // Header card
+  body.innerHTML=`
     <div class="card">
       <div class="detail-row"><span class="detail-key">Nombre</span><span class="detail-val">${trab.trabajador||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Cédula</span><span class="detail-val">${trab.cedula||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Obra</span><span class="detail-val">${trab.obra||'—'}</span></div>
     </div>
-    <div class="sec-title">Artículos asignados</div>
-    ${items.length?items.map(i=>`
-      <div class="pend">
-        <div class="pend-name">${i.herrNombre||'—'}</div>
-        <div class="pend-det">${i.cantPendiente} unidad(es) · ${i.categoria||''} · ${i.obra||''}</div>
-        <div class="pend-days">📅 Salida: ${i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—'}</div>
-        <div style="display:flex;gap:6px;margin-top:7px">
-          ${i.foto?`<button data-img="${btoa(i.foto)}" onclick="verImagenBtn(this)" style="flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer">📷 Ver foto</button>`:''}
-          ${i.firma?`<button data-img="${btoa(i.firma)}" onclick="verImagenBtn(this)" style="flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer">✍️ Ver firma</button>`:''}
-        </div>
-      </div>`).join(''):'<div class="no-results">Sin artículos pendientes</div>'}
-    ${!tienePendiente?`<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr)">Sin artículos pendientes en almacén</div></div>`:''}
+    ${!tienePendiente?'<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr)">Sin artículos pendientes</div></div>':''}
   `;
+
+  // Pending items
+  if(items.length){
+    const t=document.createElement('div');t.className='sec-title';t.style.marginTop='4px';
+    t.textContent='⏳ Artículos pendientes ('+items.length+')';
+    body.appendChild(t);
+    items.forEach(i=>{
+      const div=document.createElement('div');
+      div.className='pend';div.style.borderLeft='3px solid var(--rd)';
+      const fecha=i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—';
+      div.innerHTML='<div class="pend-name">'+(i.herrNombre||'—')+'</div>'
+        +'<div class="pend-det">'+(i.cantPendiente)+' unid. · '+(i.categoria||'')+'</div>'
+        +'<div class="pend-days">📤 Salida: '+fecha+'</div>';
+      const btnWrap=document.createElement('div');
+      btnWrap.style.cssText='display:flex;gap:6px;margin-top:7px';
+      if(i.foto){const b=document.createElement('button');b.textContent='📷 Ver foto entrega';b.style.cssText='flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer';b.addEventListener('click',()=>verImagen(i.foto,false));btnWrap.appendChild(b);}
+      if(i.firma){const b=document.createElement('button');b.textContent='✍️ Ver firma entrega';b.style.cssText='flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer';b.addEventListener('click',()=>verImagen(i.firma,true));btnWrap.appendChild(b);}
+      if(btnWrap.children.length)div.appendChild(btnWrap);
+      body.appendChild(div);
+    });
+  }
+
+  // Devoluciones
+  if(devoluciones.length){
+    const t=document.createElement('div');t.className='sec-title';t.style.marginTop='14px';
+    t.textContent='✅ Devoluciones ('+devoluciones.length+')';
+    body.appendChild(t);
+    devoluciones.forEach(d=>{
+      const div=document.createElement('div');
+      div.className='pend';div.style.borderLeft='3px solid var(--gr)';
+      const fecha=d.fechaDevolucion||d.fecha?new Date(d.fechaDevolucion||d.fecha).toLocaleDateString('es-CO'):'—';
+      div.innerHTML='<div class="pend-name">'+(d.herrNombre||'—')+'</div>'
+        +'<div class="pend-det">'+(d.cantidad||0)+' unid. · Estado: '+(d.estado||'—')+'</div>'
+        +'<div class="pend-days" style="background:var(--grl);color:var(--gr)">✅ Devuelto: '+fecha+'</div>';
+      const btnWrap=document.createElement('div');
+      btnWrap.style.cssText='display:flex;gap:6px;margin-top:7px';
+      if(d.foto){const b=document.createElement('button');b.textContent='📷 Ver foto devolución';b.style.cssText='flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer';b.addEventListener('click',()=>verImagen(d.foto,false));btnWrap.appendChild(b);}
+      if(d.firma){const b=document.createElement('button');b.textContent='✍️ Ver firma devolución';b.style.cssText='flex:1;padding:6px;background:#f8fff8;border:1px solid #B5D4A0;border-radius:6px;font-size:10px;font-weight:700;color:var(--gr);cursor:pointer';b.addEventListener('click',()=>verImagen(d.firma,true));btnWrap.appendChild(b);}
+      if(btnWrap.children.length)div.appendChild(btnWrap);
+      body.appendChild(div);
+    });
+  }
+
   document.getElementById('modalTrabajador').classList.add('open');
 }
 
-// ---- PAZ Y SALVO ----
-function buscarPazSalvo(){
-  const cedula=document.getElementById('pazCedula').value.trim();
-  if(!cedula){alert('Ingresa la cédula');return;}
-  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula);
-  const res=document.getElementById('pazResult');
-  if(!salidas.length){res.innerHTML=`<div class="card"><div style="font-size:12px;color:var(--tx2)">No se encontraron registros para la cédula <strong>${cedula}</strong></div></div>`;return;}
-  const trab=salidas[0];
-  const items=salidas.map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&d.herrId===s.herrId);
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
-  }).filter(s=>s.cantPendiente>0);
-  if(items.length>0){
-    res.innerHTML=`<div class="alert"><div class="alert-name">⚠️ No puede recibir paz y salvo</div><div class="alert-sub">${trab.trabajador} tiene ${items.length} artículo(s) pendiente(s) por devolver</div></div>
-    <div class="sec-title">Pendientes:</div>
-    ${items.map(i=>`<div class="pend"><div class="pend-name">${i.herrNombre}</div><div class="pend-det">${i.cantPendiente} unidad(es)</div></div>`).join('')}`;
-  } else {
-    const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
-    const codigo='PS-'+Date.now().toString(36).toUpperCase();
-    res.innerHTML=`
-      <div class="paz-box">
-        <div class="paz-title">✅ A PAZ Y SALVO</div>
-        <div style="font-size:11px;color:var(--gr);margin-top:3px">${trab.trabajador||'—'} · CC ${cedula}</div>
-        <div style="font-size:10px;color:var(--gr);margin-top:2px">${fecha}</div>
-        <div style="font-size:9px;color:var(--gr);margin-top:2px">Código: ${codigo}</div>
-      </div>
-      ${isAlmacenista?`
-      <div class="fg"><label>Nombre completo del trabajador</label><input type="text" id="pazNombre" value="${trab.trabajador||''}" placeholder="Nombre completo"/></div>
-      <div class="fg"><label>Correo para enviar</label><input type="email" id="pazEmail" value="${trab.email||''}" placeholder="correo@ejemplo.com"/></div>
-      <button class="btn yellow" onclick="generarPazYSalvo('${cedula}','${codigo}')">📧 Generar y enviar Paz y Salvo</button>`:''}
-    `;
-  }
-}
-
-async function generarPazYSalvo(cedula,codigo){
-  const nombre=document.getElementById('pazNombre').value.trim()||cedula;
-  const email=document.getElementById('pazEmail').value.trim();
-  const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
-  if(!email){alert('Ingresa el correo del trabajador');return;}
-  try{await db.collection('pazysalvos').add({cedula,nombre,email,fecha:new Date().toISOString(),codigo,verificacion:`https://santvel87.github.io/sersan-almacen?paz=${cedula}`});}catch(e){}
-  const body=`PAZ Y SALVO - SERSAN INGENIERÍA S.A.S.\n\nEl señor(a): ${nombre}\nCédula: ${cedula}\nFecha: ${fecha}\nCódigo de verificación: ${codigo}\n\nSe encuentra a PAZ Y SALVO con el Almacén de SERSAN INGENIERÍA S.A.S.\nNo tiene ningún artículo pendiente por devolver.\n\nVerificar en: https://santvel87.github.io/sersan-almacen?paz=${cedula}\n\n_________________________________\nFirmado digitalmente por el sistema\nSERSAN Almacén - SERSAN INGENIERÍA S.A.S.`;
-  window.location.href=`mailto:${email}?subject=Paz y Salvo Almacén SERSAN - ${nombre}&body=${encodeURIComponent(body)}`;
-}
-
-// ---- AUTOCOMPLETE ----
-function acSearch(input,listId,hiddenId){
-  const q=input.value.toLowerCase().trim();
-  const list=document.getElementById(listId);
-  if(!q){list.classList.remove('open');return;}
-  const isSalida=listId==='salAcList';
-  const matches=inventario.filter(i=>{
-    const nameMatch=(i.nombre||'').toLowerCase().includes(q);
-    const catMatch=!currentMovCat||i.categoria===currentMovCat;
-    const stockOk=!isSalida||(i.disponible||0)>0;
-    return nameMatch&&catMatch&&stockOk;
-  }).slice(0,10);
-  if(isSalida&&matches.length===0&&q){
-    list.innerHTML=`<div class="ac-item" style="color:var(--rd);font-weight:700">⚠️ Sin stock disponible para este artículo</div>`;
-    list.classList.add('open');
-    return;
-  }
-  list.innerHTML=matches.map(i=>{
-    const stockColor=(i.disponible||0)<=2?'color:var(--yl2)':'color:var(--gr)';
-    return `<div class="ac-item" ontouchstart="" onclick="selectAcItem('${i.id}','${(i.nombre||'').replace(/'/g,"\'").replace(/"/g,'&quot;')}','${input.id}','${listId}','${hiddenId}')">${catIcon(i.categoria)} ${i.nombre} <span style="${stockColor};font-size:9px">(${i.disponible} disp.)</span></div>`;
-  }).join('')+
-  (isAlmacenista&&!isSalida?`<div class="ac-item add-new" onclick="openNuevoItem()">➕ Agregar artículo nuevo</div>`:'');
-  list.classList.add('open');
-}
-
-function selectAcItem(id,nombre,inputId,listId,hiddenId){
-  document.getElementById(inputId).value=nombre;
-  document.getElementById(hiddenId).value=id;
-  document.getElementById(listId).classList.remove('open');
-  if(inputId==='entBuscar'){
-    const item=inventario.find(i=>i.id===id);
-    if(item){
-      document.getElementById('entCodigo').value=item.codigo||'';
-      document.getElementById('entMarca').value=item.marca||'';
-      document.getElementById('entDesc').value=item.descripcion||'';
-    }
-  }
-}
-
-function openNuevoItem(){
-  const buscar=document.getElementById('entBuscar');
-  if(buscar)document.getElementById('nuevoNombre').value=buscar.value||'';
-  document.getElementById('modalNuevoItem').classList.add('open');
-}
-
-async function guardarNuevoItem(){
-  const nombre=document.getElementById('nuevoNombre').value.trim();
-  const categoria=document.getElementById('nuevoCategoria').value;
-  const codigo=document.getElementById('nuevoCodigo').value.trim();
-  const marca=document.getElementById('nuevaMarca').value.trim();
-  const descripcion=document.getElementById('nuevaDesc').value.trim();
-  if(!nombre){alert('El nombre es obligatorio');return;}
-  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0};
-  try{
-    const ref=await db.collection('inventario').add(newItem);
-    newItem.id=ref.id;
-  }catch(e){newItem.id='local_'+Date.now();}
-  inventario.push(newItem);
-  renderInv(inventario);
-  closeModal('modalNuevoItem');
-  document.getElementById('entBuscar').value=nombre;
-  document.getElementById('entHiddenId').value=newItem.id;
-  document.getElementById('entCodigo').value=codigo;
-  document.getElementById('entMarca').value=marca;
-  document.getElementById('entDesc').value=descripcion;
-  alert('✅ Artículo agregado: '+nombre);
-}
-
-function acSearchAsig(q){
-  const list=document.getElementById('itemAcAsig');
-  if(!q){list.classList.remove('open');return;}
-  const m=inventario.filter(i=>(i.nombre||'').toLowerCase().includes(q.toLowerCase())).slice(0,8);
-  list.innerHTML=m.map(i=>`<div class="ac-item" onclick="showAsigPorItem('${i.id}','${(i.nombre||'').replace(/'/g,"\\'")}')">${catIcon(i.categoria)} ${i.nombre}</div>`).join('');
-  list.classList.add('open');
-}
-function showAsigPorItem(id,nombre){
-  document.getElementById('itemSearchAsig').value=nombre;
-  document.getElementById('itemAcAsig').classList.remove('open');
-  const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id).map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===s.cedula&&d.herrId===id);
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
-  }).filter(s=>s.cantPendiente>0);
-  document.getElementById('itemAsigResult').innerHTML=asig.length?
-    `<div class="sec-title">${asig.length} asignación(es) activa(s)</div>`+asig.map(m=>`<div class="pend"><div class="pend-name">${m.trabajador||'—'}</div><div class="pend-det">CC ${m.cedula||'—'} · ${m.obra||''} · ${m.cantPendiente} unid. pendientes</div><div class="pend-days">📅 ${m.fechaSalida||m.fecha?new Date(m.fechaSalida||m.fecha).toLocaleDateString('es-CO'):'—'}</div></div>`).join(''):
-    '<div class="no-results">Nadie tiene este artículo asignado</div>';
-}
-
-// ---- DEVOLUCIÓN ----
 function buscarDevPorCedula(){
   const cedula=document.getElementById('devCedBuscar').value.trim();
   if(!cedula){alert('Ingresa la cédula');return;}
@@ -1242,22 +1144,35 @@ function prevPhoto(input,previewId,boxId){
     checkSalidaReqs();
   }
 }
-function verImagen(src){
+function verImagen(src,esFirma){
   const overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.style.cssText='position:fixed;inset:0;background:'+(esFirma?'rgba(240,240,240,0.98)':'rgba(0,0,0,0.92)')+';z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
   overlay.onclick=()=>document.body.removeChild(overlay);
+  if(esFirma){
+    const lbl=document.createElement('div');
+    lbl.textContent='✍️ Firma del trabajador';
+    lbl.style.cssText='font-size:12px;font-weight:700;color:#555;margin-bottom:10px';
+    overlay.appendChild(lbl);
+  }
+  const wrap=document.createElement('div');
+  wrap.style.cssText='background:#fff;border-radius:10px;padding:12px;box-shadow:0 2px 16px rgba(0,0,0,0.15)';
   const img=document.createElement('img');
   img.src=src;
-  img.style.cssText='max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain';
+  img.style.cssText='max-width:100%;max-height:65vh;border-radius:6px;object-fit:contain;display:block';
+  wrap.appendChild(img);
+  overlay.appendChild(wrap);
   const close=document.createElement('div');
   close.textContent='✕ Toca para cerrar';
-  close.style.cssText='position:absolute;top:16px;right:16px;color:#fff;font-size:12px;font-weight:700;cursor:pointer';
-  overlay.appendChild(img);
+  close.style.cssText='margin-top:14px;color:'+(esFirma?'#555':'#fff')+';font-size:11px;font-weight:700;cursor:pointer';
   overlay.appendChild(close);
   document.body.appendChild(overlay);
 }
 function verImagenBtn(btn){
-  try{const src=atob(btn.getAttribute('data-img'));verImagen(src);}catch(e){console.log('Error al mostrar imagen',e);}
+  try{
+    const src=atob(btn.getAttribute('data-img'));
+    const esFirma=btn.textContent.toLowerCase().includes('firma');
+    verImagen(src,esFirma);
+  }catch(e){console.log('Error',e);}
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))document.querySelectorAll('.autocomplete-list').forEach(l=>l.classList.remove('open'));});

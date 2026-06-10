@@ -1337,9 +1337,16 @@ function buscarPazSalvo(){
     const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
     const codigo='PS-'+Date.now().toString(36).toUpperCase();
     res.innerHTML='<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr);margin-top:3px">'+(trab.trabajador||'—')+' · CC '+cedula+'</div><div style="font-size:10px;color:var(--gr);margin-top:2px">'+fecha+'</div><div style="font-size:9px;color:var(--gr);margin-top:2px">Código: '+codigo+'</div></div>'
-      +(isAlmacenista?'<div class="fg"><label>Nombre completo</label><input type="text" id="pazNombre" value="'+(trab.trabajador||'')+'" placeholder="Nombre completo"/></div>'
+      +(isAlmacenista?'<div class="fg"><label>Nombre completo</label><input type="text" id="pazNombre" value="'+(trab.trabajador||'').replace(/"/g,'&quot;')+'" placeholder="Nombre completo"/></div>'
       +'<div class="fg"><label>Correo para enviar</label><input type="email" id="pazEmail" value="'+(trab.email||'')+'" placeholder="correo@ejemplo.com"/></div>'
-      +'<button class="btn yellow" onclick="generarPazYSalvo(''+cedula+'',''+codigo+'')">📧 Generar y enviar Paz y Salvo</button>':'');
+      +'<button class="btn yellow" id="btnPazSalvo">📧 Generar y enviar Paz y Salvo</button>':'');
+  // Attach click handler safely
+  if(isAlmacenista){
+    setTimeout(()=>{
+      const btn=document.getElementById('btnPazSalvo');
+      if(btn)btn.addEventListener('click',()=>generarPazYSalvo(cedula,codigo));
+    },0);
+  }
   }
 }
 

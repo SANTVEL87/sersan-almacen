@@ -599,15 +599,32 @@ const INVENTARIO_INICIAL = [{"id": "inv_001", "nombre": "Adaptador para taladro 
 async function loadInventario(){
   try{
     const snap=await db.collection('inventario').get();
-    if(snap.empty){
-      inventario=[...INVENTARIO_INICIAL];
-      if(isAlmacenista){
+    const firestoreItems=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Merge: start with full local inventory, then overlay any Firestore updates
+    const map={};
+    INVENTARIO_INICIAL.forEach(i=>{map[i.id]={...i};});
+    firestoreItems.forEach(i=>{
+      if(map[i.id]){
+        // Keep Firestore disponible (reflects real movements)
+        map[i.id].disponible=i.disponible;
+        map[i.id].cantidad=i.cantidad;
+      } else {
+        map[i.id]=i;
+      }
+    });
+    inventario=Object.values(map);
+    // If Firestore has fewer items than local, sync missing ones
+    if(isAlmacenista&&firestoreItems.length<INVENTARIO_INICIAL.length){
+      const existingIds=new Set(firestoreItems.map(i=>i.id));
+      const missing=INVENTARIO_INICIAL.filter(i=>!existingIds.has(i.id));
+      if(missing.length>0){
         const batch=db.batch();
-        for(const item of inventario){const ref=db.collection('inventario').doc(item.id);batch.set(ref,{nombre:item.nombre,codigo:item.codigo,categoria:item.categoria,marca:item.marca,descripcion:item.descripcion,cantidad:item.cantidad,disponible:item.disponible});}
+        missing.forEach(item=>{
+          const ref=db.collection('inventario').doc(item.id);
+          batch.set(ref,{nombre:item.nombre,codigo:item.codigo,categoria:item.categoria,marca:item.marca||'',descripcion:item.descripcion||'',cantidad:item.cantidad,disponible:item.disponible});
+        });
         await batch.commit();
       }
-    } else {
-      inventario=snap.docs.map(d=>({id:d.id,...d.data()}));
     }
   }catch(e){inventario=[...INVENTARIO_INICIAL];}
   renderInv(inventario);loadDashboard();
@@ -744,15 +761,23 @@ function showTrabajadorDetail(cedula){
     <div class="card">
       <div class="detail-row"><span class="detail-key">Nombre</span><span class="detail-val">${trab.trabajador||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Cédula</span><span class="detail-val">${trab.cedula||'—'}</span></div>
-      <div class="detail-row"><span class="detail-key">Correo</span><span class="detail-val">${trab.email||'No registrado'}</span></div>
       <div class="detail-row"><span class="detail-key">Obra</span><span class="detail-val">${trab.obra||'—'}</span></div>
     </div>
-    <div class="sec-title">Artículos pendientes</div>
-    ${items.length?items.map(i=>`<div class="pend">
-      <div class="pend-name">${i.herrNombre||'—'}</div>
-      <div class="pend-det">${i.cantPendiente} unidad(es) · ${i.categoria||''}</div>
-      <div class="pend-days">📅 ${i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—'}</div>
-    </div>`).join(''):'<div class="no-results">Sin pendientes</div>'}
+    <div class="sec-title">Artículos asignados</div>
+    ${items.length?items.map(i=>`
+      <div class="pend">
+        <div class="pend-name">${i.herrNombre||'—'}</div>
+        <div class="pend-det">${i.cantPendiente} unidad(es) · ${i.categoria||''} · ${i.obra||''}</div>
+        <div class="pend-days">📅 Salida: ${i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—'}</div>
+        ${i.foto?`<div style="margin-top:7px">
+          <div style="font-size:9px;font-weight:700;color:var(--tx3);margin-bottom:3px">FOTO ESTADO AL ENTREGAR</div>
+          <img src="${i.foto}" style="width:100%;max-height:160px;object-fit:cover;border-radius:7px;border:1px solid var(--br)"/>
+        </div>`:''}
+        ${i.firma?`<div style="margin-top:7px">
+          <div style="font-size:9px;font-weight:700;color:var(--tx3);margin-bottom:3px">FIRMA DEL TRABAJADOR</div>
+          <img src="${i.firma}" style="width:100%;max-height:80px;object-fit:contain;border-radius:7px;border:1px solid var(--br);background:#fff"/>
+        </div>`:''}
+      </div>`).join(''):'<div class="no-results">Sin artículos pendientes</div>'}
     ${!tienePendiente?`<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr)">Sin artículos pendientes en almacén</div></div>`:''}
   `;
   document.getElementById('modalTrabajador').classList.add('open');

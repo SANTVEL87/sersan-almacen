@@ -1227,17 +1227,30 @@ document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap')
     return nameMatch&&catMatch&&stockOk;
   }).slice(0,12);
   if(isSalida&&matches.length===0&&q){
-    list.innerHTML='<div class="ac-item" style="color:var(--rd);font-weight:700">⚠️ Sin stock disponible para este artículo</div>';
+    list.innerHTML='<div class="ac-item" style="color:var(--rd);font-weight:700">⚠️ Sin stock disponible</div>';
     list.classList.add('open');
     return;
   }
-  list.innerHTML=matches.map(i=>{
-    const stockColor=(i.disponible||0)<=2?'color:var(--yl2)':'color:var(--gr)';
-    const nombre=(i.nombre||'').replace(/'/g,"\'").replace(/"/g,'&quot;');
-    return '<div class="ac-item" ontouchstart="" onclick="selectAcItem(''+i.id+'',''+nombre+'',''+input.id+'',''+listId+'',''+hiddenId+'')">'
-      +catIcon(i.categoria)+' '+i.nombre
-      +' <span style="'+stockColor+';font-size:9px">('+i.disponible+' disp.)</span></div>';
-  }).join('')+(isAlmacenista&&!isSalida?'<div class="ac-item add-new" onclick="openNuevoItem()">➕ Agregar artículo nuevo</div>':'');
+  // Use DOM to avoid quote issues
+  list.innerHTML='';
+  matches.forEach(i=>{
+    const div=document.createElement('div');
+    div.className='ac-item';
+    div.setAttribute('ontouchstart','');
+    const stockColor=(i.disponible||0)<=2?'var(--yl2)':'var(--gr)';
+    div.innerHTML=catIcon(i.categoria)+' '+i.nombre+' <span style="color:'+stockColor+';font-size:9px">('+i.disponible+' disp.)</span>';
+    div.addEventListener('click',function(){
+      selectAcItem(i.id,i.nombre,input.id,listId,hiddenId);
+    });
+    list.appendChild(div);
+  });
+  if(isAlmacenista&&!isSalida){
+    const addDiv=document.createElement('div');
+    addDiv.className='ac-item add-new';
+    addDiv.textContent='➕ Agregar artículo nuevo';
+    addDiv.addEventListener('click',openNuevoItem);
+    list.appendChild(addDiv);
+  }
   list.classList.add('open');
 }
 

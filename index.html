@@ -183,6 +183,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <button class="tab active" onclick="setMovTab(this,'tEnt')">📥 Entrada</button>
         <button class="tab" onclick="setMovTab(this,'tSal')">📤 Salida</button>
         <button class="tab" onclick="setMovTab(this,'tDev')">↩️ Devolución</button>
+        <button class="tab" onclick="setMovTab(this,'tBaja')">🚫 Baja</button>
       </div>
 
       <!-- ENTRADA -->
@@ -224,6 +225,14 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
       <!-- SALIDA -->
       <div id="tSal" style="display:none">
+        <!-- Toggle individual / lista -->
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button id="btnModInd" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:8px;font-size:11px" onclick="setSalidaMode('individual')">👤 Individual</button>
+          <button id="btnModLis" class="btn" style="flex:1;padding:8px;font-size:11px" onclick="setSalidaMode('lista')">📋 Por lista</button>
+        </div>
+
+        <!-- MODO INDIVIDUAL -->
+        <div id="salModoInd">
         <div class="cat-tabs" id="salCatTabs">
           <button class="ctab active" onclick="setMovCat(this,'','sal')">Todos</button>
           <button class="ctab" onclick="setMovCat(this,'Herramientas','sal')">🔧 Herramientas</button>
@@ -263,6 +272,48 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <div id="salReqStatus" style="font-size:10px;color:var(--rd);margin-bottom:8px;display:none">⚠️ Falta: <span id="salReqList"></span></div>
         <div class="fg"><label>Observaciones</label><textarea id="salObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
         <button class="btn primary" id="btnSalida" onclick="registrarSalida()" disabled>✓ Registrar salida de almacén</button>
+        </div><!-- end salModoInd -->
+
+        <!-- MODO LISTA -->
+        <div id="salModoLis" style="display:none">
+          <div class="fg"><label>Trabajador <span class="req-indicator">*</span></label><input type="text" id="lisTrab" placeholder="Nombre completo"/></div>
+          <div class="fg"><label>Cédula <span class="req-indicator">*</span></label><input type="text" id="lisCed" placeholder="N° de documento" inputmode="numeric"/></div>
+          <div class="fg"><label>Obra / Área <span class="req-indicator">*</span></label>
+            <select id="lisObra"><option>Montaje</option><option>Obra Civil</option><option>Bodega</option><option>Administrativo</option><option>Otro</option></select>
+          </div>
+          <div class="fg"><label>Fecha de salida <span class="req-indicator">*</span></label><input type="date" id="lisFecha"/></div>
+          <div style="background:var(--bg);border-radius:9px;padding:10px;margin-bottom:10px">
+            <div class="sec-title" style="margin-bottom:6px">Agregar artículos al lote</div>
+            <div class="autocomplete-wrap" style="margin-bottom:6px">
+              <input type="text" id="lisBuscar" placeholder="Buscar artículo..." oninput="acSearch(this,'lisAcList','lisHiddenId')" autocomplete="off"/>
+              <div class="autocomplete-list" id="lisAcList"></div>
+            </div>
+            <input type="hidden" id="lisHiddenId"/>
+            <div style="display:flex;gap:6px;margin-bottom:6px">
+              <input type="number" id="lisCantItem" value="1" min="1" style="width:80px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+              <button onclick="agregarItemLista()" style="flex:1;padding:8px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar</button>
+            </div>
+          </div>
+          <div id="lisItemsContainer" style="margin-bottom:10px;display:none">
+            <div class="sec-title" style="margin-bottom:6px">Lote (<span id="lisConteo">0</span> artículo(s))</div>
+            <div id="lisItemsList"></div>
+          </div>
+          <div class="fg"><label>Foto del lote (opcional)</label>
+            <div class="photo-box" id="pbLis">
+              <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevLis','pbLis')"/>
+              <span class="ico">📷</span><p>Foto del paquete de herramientas</p>
+            </div>
+            <img id="prevLis" class="photo-preview"/>
+          </div>
+          <div class="fg"><label>Firma del trabajador <span class="req-indicator">*</span></label>
+            <div class="sig-wrap">
+              <div class="sig-header"><span>Firme aquí con el dedo</span><button class="sig-clear" onclick="clearSig('sigLis')">Borrar</button></div>
+              <canvas class="sig-pad" id="sigLis" width="440" height="110"></canvas>
+            </div>
+          </div>
+          <div class="fg"><label>Observaciones</label><textarea id="lisObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
+          <button class="btn primary" onclick="registrarSalidaLista()">✓ Registrar salida por lote</button>
+        </div><!-- end salModoLis -->
       </div>
 
       <!-- DEVOLUCIÓN -->
@@ -310,6 +361,32 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <button class="btn primary" onclick="registrarDevolucion()">✓ Confirmar devolución</button>
           <button class="btn outline" onclick="cancelarDev()" style="font-size:11px">Cancelar</button>
         </div>
+      </div>
+
+      <!-- BAJA DE EQUIPOS -->
+      <div id="tBaja" style="display:none">
+        <div class="readonly-banner" style="background:#FEE;border-color:var(--rd);color:var(--rd);margin-bottom:10px">⚠️ Esta acción elimina el artículo del inventario de forma permanente</div>
+        <div class="fg"><label>Artículo a dar de baja <span class="req-indicator">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="bajaBuscar" placeholder="Escribir para buscar..." oninput="acSearch(this,'bajaAcList','bajaHiddenId')" autocomplete="off"/>
+            <div class="autocomplete-list" id="bajaAcList"></div>
+          </div>
+          <input type="hidden" id="bajaHiddenId"/>
+        </div>
+        <div class="fg"><label>Cantidad a dar de baja <span class="req-indicator">*</span></label><input type="number" id="bajaCant" value="1" min="1"/></div>
+        <div class="fg"><label>Fecha de baja <span class="req-indicator">*</span></label><input type="date" id="bajaFecha"/></div>
+        <div class="fg"><label>Motivo de baja <span class="req-indicator">*</span></label>
+          <select id="bajaMotivo">
+            <option value="Desgaste normal">Desgaste normal</option>
+            <option value="Daño irreparable">Daño irreparable</option>
+            <option value="Pérdida">Pérdida</option>
+            <option value="Robo">Robo</option>
+            <option value="Vencimiento">Vencimiento / Caducidad</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="fg"><label>Observaciones</label><textarea id="bajaObs" rows="2" style="resize:none" placeholder="Detalles adicionales..."></textarea></div>
+        <button class="btn" style="background:var(--rd);color:#fff;border-color:var(--rd)" onclick="registrarBaja()">🚫 Confirmar baja de inventario</button>
       </div>
     </div>
   </div>
@@ -359,13 +436,22 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     </div>
   </div>
 
-  <!-- PAZ Y SALVO -->
-  <div class="screen" id="scPazSalvo">
-    <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:32px">📄</div>
-      <div style="font-size:13px;font-weight:700;margin-top:4px">Paz y Salvo de Almacén</div>
-      <div style="font-size:10px;color:var(--tx2);margin-top:2px">Verificar si el trabajador no tiene artículos pendientes</div>
+  <!-- DOCUMENTOS -->
+  <div class="screen" id="scDocumentos">
+    <div class="sec-title">Exportar / Importar inventario</div>
+    <button class="btn yellow" onclick="exportarExcel()" style="margin-bottom:8px">📥 Exportar inventario a Excel</button>
+    <div class="import-area">
+      <input type="file" accept=".xlsx,.xlsm,.xls" onchange="importarExcelCompleto(this)"/>
+      <span style="font-size:20px">📊</span>
+      <p>Importar inventario desde Excel (reemplaza todo)</p>
     </div>
+    <div style="background:var(--bll);border-radius:7px;padding:8px 10px;margin-bottom:14px;font-size:10px;color:var(--bl)">
+      ℹ️ Columnas esperadas: Nombre · Código · Marca · Descripción · Categoría · Cantidad<br>
+      La importación reemplaza todo el inventario actual.
+    </div>
+
+    <div class="sec-title" style="margin-top:4px">Paz y Salvo de Almacén</div>
+    <div style="font-size:10px;color:var(--tx2);margin-bottom:10px">Verificar si el trabajador tiene artículos pendientes</div>
     <div class="fg"><label>Cédula del trabajador</label>
       <div style="display:flex;gap:6px">
         <input type="text" id="pazCedula" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
@@ -382,6 +468,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <button class="ctab" onclick="filterHistCat(this,'entrada')">📥 Entradas</button>
       <button class="ctab" onclick="filterHistCat(this,'salida')">📤 Salidas</button>
       <button class="ctab" onclick="filterHistCat(this,'devolucion')">↩️ Dev.</button>
+      <button class="ctab" onclick="filterHistCat(this,'baja')">🚫 Bajas</button>
     </div>
     <div id="histList"><div class="no-results">Cargando...</div></div>
   </div>
@@ -438,7 +525,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     <button class="nb" onclick="navTo('scMovimientos','Movimientos')" id="nb1"><span>🔄</span>Mover</button>
     <button class="nb" onclick="navTo('scInventario','Inventario')" id="nb2"><span>📦</span>Stock</button>
     <button class="nb" onclick="navTo('scAsignaciones','Asignados')" id="nb3"><span>👷</span>Asignados</button>
-    <button class="nb" onclick="navTo('scPazSalvo','Paz y Salvo')" id="nb4"><span>📄</span>Paz/Salvo</button>
+    <button class="nb" onclick="navTo('scDocumentos','Documentos')" id="nb4"><span>📁</span>Docs</button>
     <button class="nb" onclick="navTo('scHistorial','Historial')" id="nb5"><span>🕐</span>Historial</button>
   </nav>
 </div>
@@ -549,11 +636,13 @@ function doLogout(){auth.signOut();}
 // ---- INIT ----
 async function initApp(){
   if(!isAlmacenista){document.getElementById('readonlyBanner').style.display='block';document.getElementById('movContent').style.display='none';}
-  initSig('sigSal');initSig('sigDev');
-  const hoy=new Date().toISOString().split('T')[0];
+  initSig('sigSal');initSig('sigDev');initSig('sigLis');
+  const hoy=new Date().toISOString().split('T')[0];  setSalidaMode('individual');
   document.getElementById('entFecha').value=hoy;
   document.getElementById('salFecha').value=hoy;
   document.getElementById('devFecha').value=hoy;
+  document.getElementById('bajaFecha').value=hoy;
+  document.getElementById('lisFecha').value=hoy;
   setupSalidaValidation();
   await loadInventario();
   await loadMovimientos();
@@ -565,7 +654,7 @@ function navTo(sc,title){
   document.getElementById(sc).classList.add('active');
   document.getElementById('tbTitle').textContent=title;
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
-  const map={scInicio:'nb0',scMovimientos:'nb1',scInventario:'nb2',scAsignaciones:'nb3',scPazSalvo:'nb4',scHistorial:'nb5'};
+  const map={scInicio:'nb0',scMovimientos:'nb1',scInventario:'nb2',scAsignaciones:'nb3',scDocumentos:'nb4',scHistorial:'nb5'};
   if(map[sc])document.getElementById(map[sc]).classList.add('active');
   document.getElementById('tbBack').style.display=(sc==='scSuccess')?'block':'none';
   if(sc==='scAsignaciones')loadTrabajadores();
@@ -574,7 +663,7 @@ function goBack(){navTo('scInicio','Inicio');}
 function setMovTab(btn,id){
   document.querySelectorAll('#scMovimientos .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tEnt','tSal','tDev'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
+  ['tEnt','tSal','tDev','tBaja'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
 }
 function setMovCat(btn,cat,prefix){
   currentMovCat=cat;
@@ -950,6 +1039,140 @@ function checkSalidaReqs(){
 
 function getPhotoB64(imgId){const img=document.getElementById(imgId);return img&&img.style.display!=='none'?img.src:null;}
 
+// ---- SALIDA MODE TOGGLE ----
+let lisItems=[];
+function setSalidaMode(mode){
+  const isInd=mode==='individual';
+  document.getElementById('salModoInd').style.display=isInd?'block':'none';
+  document.getElementById('salModoLis').style.display=isInd?'none':'block';
+  document.getElementById('btnModInd').style.background=isInd?'var(--bk)':'var(--wh)';
+  document.getElementById('btnModInd').style.color=isInd?'var(--yl)':'var(--tx)';
+  document.getElementById('btnModInd').style.borderColor=isInd?'var(--bk)':'var(--br)';
+  document.getElementById('btnModLis').style.background=isInd?'var(--wh)':'var(--bk)';
+  document.getElementById('btnModLis').style.color=isInd?'var(--tx)':'var(--yl)';
+  document.getElementById('btnModLis').style.borderColor=isInd?'var(--br)':'var(--bk)';
+}
+function agregarItemLista(){
+  const nombre=document.getElementById('lisBuscar').value.trim();
+  const id=document.getElementById('lisHiddenId').value;
+  const cant=parseInt(document.getElementById('lisCantItem').value)||1;
+  if(!nombre){alert('Selecciona un artículo');return;}
+  const item=inventario.find(i=>i.id===id);
+  if(item&&cant>(item.disponible||0)){alert('⚠️ Solo hay '+item.disponible+' disponible(s) de "'+nombre+'"');return;}
+  lisItems.push({herrId:id,herrNombre:nombre,cantidad:cant,categoria:item?item.categoria:''});
+  document.getElementById('lisBuscar').value='';
+  document.getElementById('lisHiddenId').value='';
+  document.getElementById('lisCantItem').value='1';
+  renderLisItems();
+}
+function removeItemLista(idx){
+  lisItems.splice(idx,1);
+  renderLisItems();
+}
+function renderLisItems(){
+  const c=document.getElementById('lisItemsContainer');
+  const list=document.getElementById('lisItemsList');
+  document.getElementById('lisConteo').textContent=lisItems.length;
+  if(!lisItems.length){c.style.display='none';return;}
+  c.style.display='block';
+  list.innerHTML=lisItems.map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5">
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:700">${it.herrNombre}</div>
+        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.</div>
+      </div>
+      <button onclick="removeItemLista(${i})" style="padding:4px 8px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+async function registrarSalidaLista(){
+  if(!isAlmacenista)return;
+  const trab=document.getElementById('lisTrab').value.trim();
+  const ced=document.getElementById('lisCed').value.trim();
+  const fecha=document.getElementById('lisFecha').value;
+  const firma=getSigData('sigLis');
+  if(!trab||!ced||!fecha){alert('Completa trabajador, cédula y fecha');return;}
+  if(!lisItems.length){alert('Agrega al menos un artículo al lote');return;}
+  if(!firma){alert('La firma del trabajador es obligatoria');return;}
+  const foto=getPhotoB64('prevLis');
+  const obra=document.getElementById('lisObra').value;
+  const obs=document.getElementById('lisObs').value;
+  const btn=document.querySelector('#salModoLis .btn.primary');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  let saved=0;
+  for(const it of lisItems){
+    const data={
+      tipo:'salida',herrId:it.herrId,herrNombre:it.herrNombre,nombre:it.herrNombre,
+      categoria:it.categoria,cantidad:it.cantidad,cantPendiente:it.cantidad,cantOriginal:it.cantidad,
+      trabajador:trab,cedula:ced,obra,fechaSalida:fecha,observaciones:obs,
+      firma,foto,esLote:true
+    };
+    await guardarMov(data);
+    if(it.herrId){
+      const inv=inventario.find(i=>i.id===it.herrId);
+      if(inv&&inv.disponible>=it.cantidad){
+        inv.disponible-=it.cantidad;
+        try{await db.collection('inventario').doc(it.herrId).update({disponible:inv.disponible});}catch(e){}
+      }
+    }
+    saved++;
+  }
+  btn.innerHTML='✓ Registrar salida por lote';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Lote registrado!';
+  document.getElementById('succSub').textContent=saved+' artículo(s) → '+trab;
+  document.getElementById('succNote').textContent='Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  // Reset
+  lisItems=[];renderLisItems();
+  ['lisTrab','lisCed','lisObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('lisFecha').value=new Date().toISOString().split('T')[0];
+  clearSig('sigLis');
+  document.getElementById('prevLis').style.display='none';document.getElementById('pbLis').style.display='block';
+}
+
+// ---- BAJA DE EQUIPOS ----
+async function registrarBaja(){
+  if(!isAlmacenista)return;
+  const herrNombre=document.getElementById('bajaBuscar').value.trim();
+  const herrId=document.getElementById('bajaHiddenId').value;
+  const cant=parseInt(document.getElementById('bajaCant').value)||1;
+  const fecha=document.getElementById('bajaFecha').value;
+  const motivo=document.getElementById('bajaMotivo').value;
+  if(!herrNombre){alert('Selecciona un artículo');return;}
+  if(!fecha){alert('Ingresa la fecha');return;}
+  const item=inventario.find(i=>i.id===herrId);
+  if(!item){alert('Artículo no encontrado en inventario');return;}
+  if(!confirm('⚠️ ¿Confirmas la baja de '+cant+' × "'+herrNombre+'"?\nMotivo: '+motivo+'\n\nEsta acción no se puede deshacer.'))return;
+  const btn=document.querySelector('#tBaja .btn');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const data={
+    tipo:'baja',herrId,herrNombre,nombre:herrNombre,categoria:item.categoria,
+    cantidad:cant,motivo,fechaBaja:fecha,
+    observaciones:document.getElementById('bajaObs').value
+  };
+  await guardarMov(data);
+  // Update inventory: reduce cantidad and disponible
+  const newCant=Math.max(0,item.cantidad-cant);
+  const newDisp=Math.max(0,item.disponible-cant);
+  item.cantidad=newCant;item.disponible=newDisp;
+  try{
+    if(newCant<=0){
+      await db.collection('inventario').doc(herrId).delete();
+      inventario=inventario.filter(i=>i.id!==herrId);
+    } else {
+      await db.collection('inventario').doc(herrId).update({cantidad:newCant,disponible:newDisp});
+    }
+  }catch(e){}
+  btn.innerHTML='🚫 Confirmar baja de inventario';btn.disabled=false;
+  document.getElementById('succH').textContent='Baja registrada';
+  document.getElementById('succSub').textContent=cant+' × '+herrNombre+' · '+motivo;
+  document.getElementById('succNote').textContent='Artículo eliminado del inventario';
+  navTo('scSuccess','Confirmación');
+  document.getElementById('bajaBuscar').value='';document.getElementById('bajaHiddenId').value='';
+  document.getElementById('bajaCant').value='1';document.getElementById('bajaObs').value='';
+  document.getElementById('bajaFecha').value=new Date().toISOString().split('T')[0];
+  renderInv(inventario);loadDashboard();
+}
+
 async function registrarEntrada(){
   if(!isAlmacenista)return;
   const herrNombre=document.getElementById('entBuscar').value.trim();
@@ -1174,6 +1397,75 @@ function exportarExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(devData),'DEVOLUCIONES');
   const fecha=new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
   XLSX.writeFile(wb,`SERSAN_Almacen_${fecha}.xlsx`);
+}
+
+// ---- IMPORTAR INVENTARIO COMPLETO (reemplaza todo) ----
+async function importarExcelCompleto(input){
+  const file=input.files[0];if(!file)return;
+  if(!confirm('⚠️ Esto reemplazará TODO el inventario actual con el archivo Excel.\n¿Confirmas?'))return;
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets['INVENTARIO']||wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(rows.length<2){alert('El archivo está vacío o sin datos');return;}
+      // Detect columns: first row is header
+      // Expected: Nombre · Código · Marca · Descripción · Categoría · Cantidad
+      // Also accept exported format: N° · Nombre · Código · Marca · Descripción · Categoría · Cantidad Total · Disponible
+      const header=rows[0].map(h=>String(h).toLowerCase().trim());
+      const idx={
+        nombre:header.findIndex(h=>h.includes('nombre')||h.includes('herramienta')||h.includes('artículo')||h.includes('articulo')),
+        codigo:header.findIndex(h=>h.includes('código')||h.includes('codigo')),
+        marca:header.findIndex(h=>h.includes('marca')),
+        descripcion:header.findIndex(h=>h.includes('descripción')||h.includes('descripcion')),
+        categoria:header.findIndex(h=>h.includes('categoría')||h.includes('categoria')),
+        cantidad:header.findIndex(h=>h.includes('cantidad total')||h.includes('cantidad')),
+        disponible:header.findIndex(h=>h.includes('disponible')),
+      };
+      if(idx.nombre<0){alert('No se encontró columna "Nombre" en el Excel');return;}
+      const newInventario=[];
+      for(let i=1;i<rows.length;i++){
+        const row=rows[i];
+        const nombre=String(row[idx.nombre]||'').trim();
+        if(!nombre)continue;
+        const cant=idx.cantidad>=0?parseInt(row[idx.cantidad])||0:0;
+        const disp=idx.disponible>=0?parseInt(row[idx.disponible])||cant:cant;
+        newInventario.push({
+          id:'imp_'+i+'_'+Date.now(),
+          nombre,
+          codigo:idx.codigo>=0?String(row[idx.codigo]||'').trim():'',
+          marca:idx.marca>=0?String(row[idx.marca]||'').trim():'',
+          descripcion:idx.descripcion>=0?String(row[idx.descripcion]||'').trim():'',
+          categoria:idx.categoria>=0?String(row[idx.categoria]||'Herramientas').trim():'Herramientas',
+          cantidad:cant,disponible:disp,
+          proveedor:'',factura:'',valor:'',observaciones:''
+        });
+      }
+      if(!newInventario.length){alert('No se encontraron artículos en el archivo');return;}
+      // Delete all existing Firestore inventory
+      const snap=await db.collection('inventario').get();
+      const delBatch=db.batch();
+      snap.docs.forEach(d=>delBatch.delete(d.ref));
+      await delBatch.commit();
+      // Write new inventory in batches of 499
+      const CHUNK=499;
+      for(let i=0;i<newInventario.length;i+=CHUNK){
+        const chunk=newInventario.slice(i,i+CHUNK);
+        const batch=db.batch();
+        chunk.forEach(item=>{
+          const ref=db.collection('inventario').doc(item.id);
+          batch.set(ref,{nombre:item.nombre,codigo:item.codigo,marca:item.marca,descripcion:item.descripcion,categoria:item.categoria,cantidad:item.cantidad,disponible:item.disponible});
+        });
+        await batch.commit();
+      }
+      inventario=newInventario;
+      renderInv(inventario);loadDashboard();
+      alert('✅ Inventario actualizado: '+newInventario.length+' artículos importados');
+    }catch(err){alert('Error al importar: '+err.message);}
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ---- FIRMA ----

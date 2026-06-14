@@ -188,6 +188,12 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
       <!-- ENTRADA -->
       <div id="tEnt">
+        <!-- Toggle individual / lote -->
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button id="btnEntInd" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:8px;font-size:11px" onclick="setEntradaMode('individual')">📦 Individual</button>
+          <button id="btnEntLot" class="btn" style="flex:1;padding:8px;font-size:11px" onclick="setEntradaMode('lote')">📋 Por lote</button>
+        </div>
+        <div id="entModoInd">
         <div class="cat-tabs" id="entCatTabs">
           <button class="ctab active" onclick="setMovCat(this,'Herramientas','ent')">🔧 Herramientas</button>
           <button class="ctab" onclick="setMovCat(this,'EPP','ent')">🦺 EPP</button>
@@ -212,6 +218,13 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <div class="fg"><label>N° Factura / Remisión</label><input type="text" id="entFact" placeholder="FAC-2026-001"/></div>
         <div class="fg"><label>Valor unitario ($)</label><input type="number" id="entValor" placeholder="0" min="0"/></div>
         <div class="fg"><label>Fecha de ingreso <span class="req-indicator">*</span></label><input type="date" id="entFecha"/></div>
+        <div class="fg"><label>Foto del artículo (opcional)</label>
+          <div class="photo-box" id="pbEntArt">
+            <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevEntArt','pbEntArt')"/>
+            <span class="ico">📸</span><p>Foto del artículo para el inventario</p>
+          </div>
+          <img id="prevEntArt" class="photo-preview"/>
+        </div>
         <div class="fg"><label>Foto de factura (opcional)</label>
           <div class="photo-box" id="pbEnt">
             <input type="file" accept="image/*,application/pdf" capture="environment" onchange="prevPhoto(this,'prevEnt','pbEnt')"/>
@@ -221,6 +234,39 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <div class="fg"><label>Observaciones</label><textarea id="entObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
         <button class="btn primary" onclick="registrarEntrada()">✓ Registrar entrada al almacén</button>
+        </div><!-- end entModoInd -->
+
+        <!-- MODO LOTE -->
+        <div id="entModoLot" style="display:none">
+          <div class="fg"><label>N° Factura / Remisión <span class="req-indicator">*</span></label><input type="text" id="lotFact" placeholder="FAC-2026-001"/></div>
+          <div class="fg"><label>Proveedor</label><input type="text" id="lotProv" placeholder="Nombre del proveedor"/></div>
+          <div class="fg"><label>Fecha de ingreso <span class="req-indicator">*</span></label><input type="date" id="lotFecha"/></div>
+          <div class="fg"><label>Foto de factura (opcional)</label>
+            <div class="photo-box" id="pbLotFact">
+              <input type="file" accept="image/*,application/pdf" capture="environment" onchange="prevPhoto(this,'prevLotFact','pbLotFact')"/>
+              <span class="ico">📷</span><p>Foto de la factura del lote</p>
+            </div>
+            <img id="prevLotFact" class="photo-preview"/>
+          </div>
+          <div style="background:var(--bg);border-radius:9px;padding:10px;margin-bottom:10px">
+            <div class="sec-title" style="margin-bottom:6px">Agregar artículos al lote</div>
+            <div class="autocomplete-wrap" style="margin-bottom:6px">
+              <input type="text" id="lotBuscar" placeholder="Buscar artículo..." oninput="acSearch(this,'lotAcList','lotHiddenId')" autocomplete="off"/>
+              <div class="autocomplete-list" id="lotAcList"></div>
+            </div>
+            <input type="hidden" id="lotHiddenId"/>
+            <div style="display:flex;gap:6px;margin-bottom:6px">
+              <input type="number" id="lotCantItem" value="1" min="1" style="width:70px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+              <button onclick="agregarItemLote()" style="flex:1;padding:8px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar</button>
+            </div>
+          </div>
+          <div id="lotItemsContainer" style="margin-bottom:10px;display:none">
+            <div class="sec-title" style="margin-bottom:6px">Artículos en lote (<span id="lotConteo">0</span>)</div>
+            <div id="lotItemsList"></div>
+          </div>
+          <div class="fg"><label>Observaciones del lote</label><textarea id="lotObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
+          <button class="btn primary" onclick="registrarEntradaLote()">✓ Registrar lote al almacén</button>
+        </div><!-- end entModoLot -->
       </div>
 
       <!-- SALIDA -->
@@ -520,6 +566,14 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     </div>
   </div>
 
+  <!-- MODAL DETALLE ARTÍCULO -->
+  <div class="modal-overlay" id="modalItemDetail">
+    <div class="modal-box">
+      <div class="modal-title" id="modalItemTitulo">Artículo <button class="modal-close" onclick="closeModal('modalItemDetail')">×</button></div>
+      <div id="modalItemBody"></div>
+    </div>
+  </div>
+
   <nav class="navbar">
     <button class="nb active" onclick="navTo('scInicio','Inicio')" id="nb0"><span>🏠</span>Inicio</button>
     <button class="nb" onclick="navTo('scMovimientos','Movimientos')" id="nb1"><span>🔄</span>Mover</button>
@@ -597,9 +651,11 @@ db.enablePersistence().catch(()=>{});
 
 
 const ALMACENISTA='sersanalmacen01@gmail.com';
+const ADMINS=['santiago87velasquez@hotmail.com','sersanmantenimiento@gmail.com'];
 const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
 
-let currentUser=null,isAlmacenista=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
+let currentUser=null,isAlmacenista=false,isAdmin=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
+let solicitudesPendientes=[],anulMovActual=null;
 let offlineQueue=JSON.parse(localStorage.getItem('sersanQ')||'[]');
 
 window.addEventListener('online',()=>{document.getElementById('offlineBanner').style.display='none';syncQueue();});
@@ -611,7 +667,7 @@ window.addEventListener('offline',()=>{document.getElementById('offlineBanner').
 auth.onAuthStateChanged(user=>{
   if(user){
     if(!AUTORIZADOS.includes(user.email)){auth.signOut();document.getElementById('loginErr').textContent='Correo no autorizado: '+user.email;return;}
-    currentUser=user;isAlmacenista=(user.email===ALMACENISTA);
+    currentUser=user;isAlmacenista=(user.email===ALMACENISTA);isAdmin=ADMINS.includes(user.email);
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='flex';
     const nombre=user.displayName||user.email;
@@ -636,16 +692,26 @@ function doLogout(){auth.signOut();}
 // ---- INIT ----
 async function initApp(){
   if(!isAlmacenista){document.getElementById('readonlyBanner').style.display='block';document.getElementById('movContent').style.display='none';}
+  // Toggle import visibility based on admin role
+  const importArea=document.getElementById('importArea');
+  const noImportMsg=document.getElementById('noImportMsg');
+  if(importArea&&noImportMsg){
+    if(isAdmin){importArea.style.display='block';noImportMsg.style.display='none';}
+    else{importArea.style.display='none';noImportMsg.style.display='block';}
+  }
   initSig('sigSal');initSig('sigDev');initSig('sigLis');
-  const hoy=new Date().toISOString().split('T')[0];  setSalidaMode('individual');
+  const hoy=new Date().toISOString().split('T')[0];
+  setSalidaMode('individual');setEntradaMode('individual');
   document.getElementById('entFecha').value=hoy;
   document.getElementById('salFecha').value=hoy;
   document.getElementById('devFecha').value=hoy;
   document.getElementById('bajaFecha').value=hoy;
   document.getElementById('lisFecha').value=hoy;
+  document.getElementById('lotFecha').value=hoy;
   setupSalidaValidation();
   await loadInventario();
   await loadMovimientos();
+  if(isAdmin)await loadSolicitudes();
 }
 
 // ---- NAV ----
@@ -786,7 +852,25 @@ function filterInv(q){renderInv(inventario);}
 function showItemDetail(id){
   const item=inventario.find(i=>i.id===id);if(!item)return;
   const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id&&(m.cantPendiente||0)>0);
-  alert(`${item.nombre}\n\nCódigo: ${item.codigo||'—'}\nMarca: ${item.marca||'—'}\nCategoría: ${item.categoria}\nDescripción: ${item.descripcion||'—'}\nTotal: ${item.cantidad}\nDisponible: ${item.disponible}\nAsignado a ${asig.length} trabajador(es)`);
+  const estado=item.disponible===0?'<span style="color:var(--rd);font-weight:700">AGOTADO</span>':item.disponible<=2?'<span style="color:var(--yl2);font-weight:700">STOCK BAJO</span>':'<span style="color:var(--gr);font-weight:700">DISPONIBLE</span>';
+  const body=document.getElementById('modalItemBody');
+  body.innerHTML=`
+    ${item.fotoArticulo?`<img src="${item.fotoArticulo}" style="width:100%;max-height:160px;object-fit:cover;border-radius:9px;margin-bottom:12px">`:'<div style="width:100%;height:80px;background:var(--bg);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:12px">'+catIcon(item.categoria)+'</div>'}
+    <div class="card" style="margin-bottom:8px">
+      <div class="detail-row"><span class="detail-key">Código</span><span class="detail-val">${item.codigo||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Marca</span><span class="detail-val">${item.marca||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Categoría</span><span class="detail-val">${item.categoria||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Descripción</span><span class="detail-val" style="text-align:right;font-size:10px">${item.descripcion||'—'}</span></div>
+    </div>
+    <div class="stat-grid" style="margin-bottom:8px">
+      <div class="stat"><div class="stat-n">${item.cantidad}</div><div class="stat-l">Total</div></div>
+      <div class="stat"><div class="stat-n" style="color:${item.disponible===0?'var(--rd)':'var(--gr)'}">${item.disponible}</div><div class="stat-l">Disponible</div></div>
+    </div>
+    <div style="text-align:center;margin-bottom:8px;font-size:12px">${estado}</div>
+    ${asig.length>0?`<div style="font-size:10px;color:var(--tx2);margin-top:4px">📤 Asignado a: ${asig.map(s=>s.trabajador||'—').join(', ')} (${asig.length} salida(s) pendiente(s))</div>`:''}
+  `;
+  document.getElementById('modalItemTitulo').innerHTML=item.nombre;
+  document.getElementById('modalItemDetail').classList.add('open');
 }
 
 // ---- DASHBOARD ----
@@ -815,14 +899,28 @@ async function loadMovimientos(){
 }
 
 function renderHistorial(movs){
-  const f=currentHistCat?movs.filter(m=>m.tipo===currentHistCat):movs;
-  const t={entrada:{cls:'e',ico:'📥',pre:'+'},salida:{cls:'s',ico:'📤',pre:'-'},devolucion:{cls:'d',ico:'↩️',pre:'+'}};
+  let f;
+  if(currentHistCat==='anulado'){f=movs.filter(m=>m.anulado);}
+  else if(currentHistCat){f=movs.filter(m=>m.tipo===currentHistCat&&!m.anulado);}
+  else{f=movs;}
+  const t={entrada:{cls:'e',ico:'📥',pre:'+'},salida:{cls:'s',ico:'📤',pre:'-'},devolucion:{cls:'d',ico:'↩️',pre:'+'},baja:{cls:'s',ico:'🚫',pre:'-'}};
+  const pendMovIds=new Set(solicitudesPendientes.filter(s=>s.estado==='pendiente').map(s=>s.movId));
   document.getElementById('histList').innerHTML=f.length?f.map(m=>{
     const x=t[m.tipo]||t.salida;
-    const fecha=m.fechaSalida||m.fechaIngreso||m.fecha;
+    const fecha=m.fechaSalida||m.fechaIngreso||m.fechaBaja||m.fecha;
     const fechaStr=fecha?new Date(fecha).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}):'';
-    const meta=m.tipo==='salida'?`${m.trabajador||''} · CC ${m.cedula||''} · ${m.obra||''}`:m.tipo==='devolucion'?`${m.trabajador||''} devolvió`:(m.proveedor||'Entrada');
-    return `<div class="mov-row"><div class="mov-dot ${x.cls}">${x.ico}</div><div style="flex:1;min-width:0"><div class="mov-name">${m.herrNombre||m.nombre||'—'} ×${m.cantidad}</div><div class="mov-meta">${meta}</div><div class="mov-meta">${fechaStr}</div></div><div class="mov-qty ${x.cls}">${x.pre}${m.cantidad}</div></div>`;
+    const meta=m.tipo==='salida'?`${m.trabajador||''} · CC ${m.cedula||''} · ${m.obra||''}`:m.tipo==='devolucion'?`${m.trabajador||''} devolvió`:m.tipo==='baja'?`Baja · ${m.motivo||''}`:(m.proveedor||'Entrada');
+    const anulBadge=m.anulado?'<span style="font-size:8px;background:var(--rd);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px">ANULADO</span>':'';
+    const anulMeta=m.anulado?`<div class="mov-meta" style="color:var(--rd);font-size:8px">Anulado: ${m.motivoAnulacion||''}</div>`:'';
+    let anulBtn='';
+    if(isAlmacenista&&!isAdmin&&!m.anulado&&m.tipo!=='baja'){
+      if(pendMovIds.has(m.id)){
+        anulBtn='<div style="font-size:8px;color:var(--yl2);margin-top:3px;font-weight:700">⏳ Solicitud enviada</div>';
+      } else {
+        anulBtn=`<button onclick="solicitarAnulacion('${m.id}')" style="margin-top:4px;padding:3px 8px;background:var(--rdl);color:var(--rd);border:1px solid #ffb3b3;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer">🚫 Solicitar anulación</button>`;
+      }
+    }
+    return `<div class="mov-row${m.anulado?' anulado':''}"><div class="mov-dot ${x.cls}">${x.ico}</div><div style="flex:1;min-width:0"><div class="mov-name">${m.herrNombre||m.nombre||'—'} ×${m.cantidad}${anulBadge}</div><div class="mov-meta">${meta}</div><div class="mov-meta">${fechaStr}</div>${anulMeta}${anulBtn}</div><div class="mov-qty ${x.cls}">${m.anulado?'':x.pre}${m.cantidad}</div></div>`;
   }).join(''):'<div class="no-results">Sin movimientos aún</div>';
 }
 function filterHistCat(btn,cat){currentHistCat=cat;document.getElementById('scHistorial').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderHistorial(movimientos);}
@@ -1056,10 +1154,18 @@ function agregarItemLista(){
   const nombre=document.getElementById('lisBuscar').value.trim();
   const id=document.getElementById('lisHiddenId').value;
   const cant=parseInt(document.getElementById('lisCantItem').value)||1;
-  if(!nombre){alert('Selecciona un artículo');return;}
+  if(!nombre||!id){alert('Selecciona un artículo de la lista');return;}
   const item=inventario.find(i=>i.id===id);
-  if(item&&cant>(item.disponible||0)){alert('⚠️ Solo hay '+item.disponible+' disponible(s) de "'+nombre+'"');return;}
-  lisItems.push({herrId:id,herrNombre:nombre,cantidad:cant,categoria:item?item.categoria:''});
+  if(!item){alert('Artículo no encontrado en inventario');return;}
+  if((item.disponible||0)<=0){alert('⚠️ "'+nombre+'" no tiene stock disponible (0 unidades)');return;}
+  // Check if already in list → accumulate
+  const existIdx=lisItems.findIndex(i=>i.herrId===id);
+  const yaEnLote=existIdx>=0?lisItems[existIdx].cantidad:0;
+  if(yaEnLote+cant>(item.disponible||0)){
+    alert('⚠️ Ya tienes '+yaEnLote+' en el lote. Solo hay '+item.disponible+' disponible(s) de "'+nombre+'".');return;
+  }
+  if(existIdx>=0){lisItems[existIdx].cantidad+=cant;}
+  else{lisItems.push({herrId:id,herrNombre:nombre,cantidad:cant,categoria:item.categoria||''});}
   document.getElementById('lisBuscar').value='';
   document.getElementById('lisHiddenId').value='';
   document.getElementById('lisCantItem').value='1';
@@ -1173,6 +1279,94 @@ async function registrarBaja(){
   renderInv(inventario);loadDashboard();
 }
 
+// ---- ENTRADA MODE TOGGLE ----
+let entLoteItems=[];
+function setEntradaMode(mode){
+  const isInd=mode==='individual';
+  document.getElementById('entModoInd').style.display=isInd?'block':'none';
+  document.getElementById('entModoLot').style.display=isInd?'none':'block';
+  document.getElementById('btnEntInd').style.background=isInd?'var(--bk)':'var(--wh)';
+  document.getElementById('btnEntInd').style.color=isInd?'var(--yl)':'var(--tx)';
+  document.getElementById('btnEntInd').style.borderColor=isInd?'var(--bk)':'var(--br)';
+  document.getElementById('btnEntLot').style.background=isInd?'var(--wh)':'var(--bk)';
+  document.getElementById('btnEntLot').style.color=isInd?'var(--tx)':'var(--yl)';
+  document.getElementById('btnEntLot').style.borderColor=isInd?'var(--br)':'var(--bk)';
+}
+function agregarItemLote(){
+  const nombre=document.getElementById('lotBuscar').value.trim();
+  const id=document.getElementById('lotHiddenId').value;
+  const cant=parseInt(document.getElementById('lotCantItem').value)||1;
+  if(!nombre||!id){alert('Selecciona un artículo de la lista');return;}
+  if(cant<1){alert('Cantidad debe ser mayor a 0');return;}
+  const existIdx=entLoteItems.findIndex(i=>i.herrId===id);
+  if(existIdx>=0){entLoteItems[existIdx].cantidad+=cant;}
+  else{
+    const inv=inventario.find(i=>i.id===id);
+    entLoteItems.push({herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:''});
+  }
+  document.getElementById('lotBuscar').value='';
+  document.getElementById('lotHiddenId').value='';
+  document.getElementById('lotCantItem').value='1';
+  renderLoteItems();
+}
+function removeItemLote(idx){entLoteItems.splice(idx,1);renderLoteItems();}
+function renderLoteItems(){
+  const c=document.getElementById('lotItemsContainer');
+  const list=document.getElementById('lotItemsList');
+  document.getElementById('lotConteo').textContent=entLoteItems.length;
+  if(!entLoteItems.length){c.style.display='none';return;}
+  c.style.display='block';
+  list.innerHTML=entLoteItems.map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5">
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:700">${it.herrNombre}</div>
+        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.</div>
+      </div>
+      <button onclick="removeItemLote(${i})" style="padding:4px 8px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+async function registrarEntradaLote(){
+  if(!isAlmacenista)return;
+  const factura=document.getElementById('lotFact').value.trim();
+  const proveedor=document.getElementById('lotProv').value.trim();
+  const fecha=document.getElementById('lotFecha').value;
+  if(!factura){alert('El número de factura es obligatorio para el lote');return;}
+  if(!fecha){alert('Ingresa la fecha de ingreso');return;}
+  if(!entLoteItems.length){alert('Agrega al menos un artículo al lote');return;}
+  const btn=document.querySelector('#entModoLot .btn.primary');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const fotoFactura=getPhotoB64('prevLotFact');
+  let saved=0;
+  for(const it of entLoteItems){
+    const data={
+      tipo:'entrada',herrId:it.herrId,herrNombre:it.herrNombre,nombre:it.herrNombre,
+      categoria:it.categoria,cantidad:it.cantidad,
+      proveedor,factura,fechaIngreso:fecha,
+      observaciones:document.getElementById('lotObs').value,
+      foto:fotoFactura,esLote:true
+    };
+    await guardarMov(data);
+    if(it.herrId){
+      const item=inventario.find(i=>i.id===it.herrId);
+      if(item){
+        item.cantidad+=it.cantidad;item.disponible+=it.cantidad;
+        try{await db.collection('inventario').doc(it.herrId).update({cantidad:item.cantidad,disponible:item.disponible});}catch(e){}
+      }
+    }
+    saved++;
+  }
+  btn.innerHTML='✓ Registrar lote al almacén';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Lote registrado!';
+  document.getElementById('succSub').textContent=saved+' artículo(s) ingresados · Factura: '+factura;
+  document.getElementById('succNote').textContent='Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  entLoteItems=[];renderLoteItems();
+  ['lotFact','lotProv','lotObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('lotFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('prevLotFact').style.display='none';document.getElementById('pbLotFact').style.display='block';
+  renderInv(inventario);loadDashboard();
+}
+
 async function registrarEntrada(){
   if(!isAlmacenista)return;
   const herrNombre=document.getElementById('entBuscar').value.trim();
@@ -1184,6 +1378,7 @@ async function registrarEntrada(){
   if(!fecha){alert('Ingresa la fecha de ingreso');return;}
   const btn=document.querySelector('#tEnt .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const fotoArticulo=getPhotoB64('prevEntArt');
   const data={
     tipo:'entrada',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,
     codigo:document.getElementById('entCodigo').value,
@@ -1201,7 +1396,10 @@ async function registrarEntrada(){
     const item=inventario.find(i=>i.id===herrId);
     if(item){
       item.cantidad+=cant;item.disponible+=cant;
-      try{await db.collection('inventario').doc(herrId).update({cantidad:item.cantidad,disponible:item.disponible});}catch(e){}
+      const upd={cantidad:item.cantidad,disponible:item.disponible};
+      if(fotoArticulo)upd.fotoArticulo=fotoArticulo;
+      if(fotoArticulo)item.fotoArticulo=fotoArticulo;
+      try{await db.collection('inventario').doc(herrId).update(upd);}catch(e){}
     }
   }
   btn.innerHTML='✓ Registrar entrada al almacén';btn.disabled=false;
@@ -1213,6 +1411,7 @@ async function registrarEntrada(){
   document.getElementById('entCant').value='1';
   document.getElementById('entFecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('prevEnt').style.display='none';document.getElementById('pbEnt').style.display='block';
+  document.getElementById('prevEntArt').style.display='none';document.getElementById('pbEntArt').style.display='block';
 }
 
 async function registrarSalida(){
@@ -1466,6 +1665,128 @@ async function importarExcelCompleto(input){
     input.value='';
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ---- ANULACIONES ----
+function solicitarAnulacion(movId){
+  const mov=movimientos.find(m=>m.id===movId);if(!mov)return;
+  anulMovActual=mov;
+  document.getElementById('anulMovInfo').textContent=
+    (mov.herrNombre||mov.nombre||'—')+' × '+mov.cantidad+' · '+
+    (mov.tipo==='salida'?'Salida a '+(mov.trabajador||'—'):mov.tipo==='devolucion'?'Devolución de '+(mov.trabajador||'—'):'Entrada · '+(mov.factura||''))+
+    ' · '+(mov.fechaSalida||mov.fechaIngreso||mov.fecha||'').split('T')[0];
+  document.getElementById('anulDetalle').value='';
+  document.getElementById('modalSolicitudAnul').classList.add('open');
+}
+async function confirmarSolicitudAnulacion(){
+  if(!anulMovActual)return;
+  const motivo=document.getElementById('anulMotivo').value;
+  const detalle=document.getElementById('anulDetalle').value.trim();
+  if(!detalle){alert('Escribe el detalle de la anulación');return;}
+  const btn=document.querySelector('#modalSolicitudAnul .btn');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  try{
+    await db.collection('solicitudes_anulacion').add({
+      movId:anulMovActual.id,
+      tipo:anulMovActual.tipo,
+      herrNombre:anulMovActual.herrNombre||anulMovActual.nombre||'—',
+      herrId:anulMovActual.herrId||'',
+      cantidad:anulMovActual.cantidad||0,
+      trabajador:anulMovActual.trabajador||'',
+      cedula:anulMovActual.cedula||'',
+      motivo,detalle,
+      estado:'pendiente',
+      solicitadoPor:currentUser.email,
+      solicitadoFecha:new Date().toISOString()
+    });
+    solicitudesPendientes=await fetchSolicitudes();
+    closeModal('modalSolicitudAnul');
+    renderHistorial(movimientos);
+    alert('Solicitud enviada. Un administrador la revisará.');
+  }catch(e){alert('Error al enviar solicitud: '+e.message);}
+  btn.innerHTML='📨 Enviar solicitud de anulación';btn.disabled=false;
+}
+async function fetchSolicitudes(){
+  try{
+    const snap=await db.collection('solicitudes_anulacion').orderBy('solicitadoFecha','desc').get();
+    return snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){return[];}
+}
+async function loadSolicitudes(){
+  solicitudesPendientes=await fetchSolicitudes();
+  renderSolicitudes();
+}
+function renderSolicitudes(){
+  const pend=solicitudesPendientes.filter(s=>s.estado==='pendiente');
+  const sec=document.getElementById('solicitSection');
+  const list=document.getElementById('solicitList');
+  if(!pend.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  list.innerHTML=pend.map(s=>`
+    <div class="card" style="border-left:3px solid var(--rd);margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700">${s.herrNombre} × ${s.cantidad}</div>
+      <div style="font-size:9px;color:var(--tx2);margin-top:2px">Tipo: ${s.tipo}${s.trabajador?' · '+s.trabajador:''}</div>
+      <div style="font-size:9px;color:var(--rd);margin-top:2px">Motivo: ${s.motivo} — ${s.detalle}</div>
+      <div style="font-size:8px;color:var(--tx3);margin-top:1px">Solicitado por: ${s.solicitadoPor}</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button onclick="aprobarAnulacion('${s.id}')" style="flex:1;padding:6px;background:var(--gr);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">✅ Aprobar</button>
+        <button onclick="rechazarAnulacion('${s.id}')" style="flex:1;padding:6px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">❌ Rechazar</button>
+      </div>
+    </div>`).join('');
+}
+async function aprobarAnulacion(solId){
+  const sol=solicitudesPendientes.find(s=>s.id===solId);if(!sol)return;
+  if(!confirm('¿Aprobar la anulación de "'+sol.herrNombre+' × '+sol.cantidad+'"?\nEsto revertirá el stock automáticamente.'))return;
+  try{
+    await db.collection('movimientos').doc(sol.movId).update({
+      anulado:true,
+      motivoAnulacion:sol.motivo+' — '+sol.detalle,
+      anuladoPor:currentUser.email,
+      anuladoFecha:new Date().toISOString()
+    });
+    const item=inventario.find(i=>i.id===sol.herrId);
+    if(item){
+      let upd={};
+      if(sol.tipo==='salida'){
+        item.disponible=Math.min(item.cantidad,item.disponible+(sol.cantidad||0));
+        upd={disponible:item.disponible};
+      } else if(sol.tipo==='entrada'){
+        item.cantidad=Math.max(0,item.cantidad-(sol.cantidad||0));
+        item.disponible=Math.max(0,item.disponible-(sol.cantidad||0));
+        upd={cantidad:item.cantidad,disponible:item.disponible};
+      } else if(sol.tipo==='devolucion'){
+        item.disponible=Math.max(0,item.disponible-(sol.cantidad||0));
+        upd={disponible:item.disponible};
+      }
+      if(Object.keys(upd).length)await db.collection('inventario').doc(item.id).update(upd);
+    }
+    await db.collection('solicitudes_anulacion').doc(solId).update({
+      estado:'aprobada',
+      resueltoPor:currentUser.email,
+      resueltoFecha:new Date().toISOString()
+    });
+    const mov=movimientos.find(m=>m.id===sol.movId);
+    if(mov){mov.anulado=true;mov.motivoAnulacion=sol.motivo+' — '+sol.detalle;}
+    solicitudesPendientes=solicitudesPendientes.filter(s=>s.id!==solId);
+    renderSolicitudes();renderHistorial(movimientos);renderInv(inventario);loadDashboard();
+    alert('Anulación aprobada y stock revertido.');
+  }catch(e){alert('Error: '+e.message);}
+}
+async function rechazarAnulacion(solId){
+  const sol=solicitudesPendientes.find(s=>s.id===solId);if(!sol)return;
+  const razon=prompt('Motivo del rechazo (obligatorio):');
+  if(!razon||!razon.trim())return;
+  try{
+    await db.collection('solicitudes_anulacion').doc(solId).update({
+      estado:'rechazada',
+      motivoRechazo:razon.trim(),
+      resueltoPor:currentUser.email,
+      resueltoFecha:new Date().toISOString()
+    });
+    solicitudesPendientes=solicitudesPendientes.filter(s=>s.id!==solId);
+    renderSolicitudes();
+    alert('Solicitud rechazada.');
+  }catch(e){alert('Error: '+e.message);}
 }
 
 // ---- FIRMA ----

@@ -654,7 +654,7 @@ const ALMACENISTA='sersanalmacen01@gmail.com';
 const ADMINS=['santiago87velasquez@hotmail.com','sersanmantenimiento@gmail.com'];
 const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
 
-let currentUser=null,isAlmacenista=false,isAdmin=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
+let currentUser=null,isAlmacenista=false,isAdmin=false,canOperate=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
 let solicitudesPendientes=[],anulMovActual=null;
 let offlineQueue=JSON.parse(localStorage.getItem('sersanQ')||'[]');
 
@@ -667,12 +667,12 @@ window.addEventListener('offline',()=>{document.getElementById('offlineBanner').
 auth.onAuthStateChanged(user=>{
   if(user){
     if(!AUTORIZADOS.includes(user.email)){auth.signOut();document.getElementById('loginErr').textContent='Correo no autorizado: '+user.email;return;}
-    currentUser=user;isAlmacenista=(user.email===ALMACENISTA);isAdmin=ADMINS.includes(user.email);
+    currentUser=user;isAlmacenista=(user.email===ALMACENISTA);isAdmin=ADMINS.includes(user.email);canOperate=isAlmacenista||isAdmin;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='flex';
     const nombre=user.displayName||user.email;
     document.getElementById('tbUser').textContent=nombre.split(' ')[0]||nombre;
-    if(isAlmacenista){document.getElementById('tbBadge').style.display='block';document.getElementById('invToolbar').style.display='flex';}
+    if(canOperate){document.getElementById('tbBadge').style.display='block';document.getElementById('invToolbar').style.display='flex';}
     initApp();
   } else {
     document.getElementById('loginScreen').style.display='flex';
@@ -691,7 +691,7 @@ function doLogout(){auth.signOut();}
 
 // ---- INIT ----
 async function initApp(){
-  if(!isAlmacenista){document.getElementById('readonlyBanner').style.display='block';document.getElementById('movContent').style.display='none';}
+  if(!canOperate){document.getElementById('readonlyBanner').style.display='block';document.getElementById('movContent').style.display='none';}
   // Toggle import visibility based on admin role
   const importArea=document.getElementById('importArea');
   const noImportMsg=document.getElementById('noImportMsg');
@@ -803,7 +803,7 @@ async function loadInventario(){
     });
     inventario=Object.values(map);
     // If Firestore has fewer items than local, sync missing ones
-    if(isAlmacenista&&firestoreItems.length<INVENTARIO_INICIAL.length){
+    if(canOperate&&firestoreItems.length<INVENTARIO_INICIAL.length){
       const existingIds=new Set(firestoreItems.map(i=>i.id));
       const missing=INVENTARIO_INICIAL.filter(i=>!existingIds.has(i.id));
       if(missing.length>0){
@@ -913,7 +913,7 @@ function renderHistorial(movs){
     const anulBadge=m.anulado?'<span style="font-size:8px;background:var(--rd);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px">ANULADO</span>':'';
     const anulMeta=m.anulado?`<div class="mov-meta" style="color:var(--rd);font-size:8px">Anulado: ${m.motivoAnulacion||''}</div>`:'';
     let anulBtn='';
-    if(isAlmacenista&&!isAdmin&&!m.anulado&&m.tipo!=='baja'){
+    if(canOperate&&!isAdmin&&!m.anulado&&m.tipo!=='baja'){
       if(pendMovIds.has(m.id)){
         anulBtn='<div style="font-size:8px;color:var(--yl2);margin-top:3px;font-weight:700">⏳ Solicitud enviada</div>';
       } else {
@@ -1191,7 +1191,7 @@ function renderLisItems(){
     </div>`).join('');
 }
 async function registrarSalidaLista(){
-  if(!isAlmacenista)return;
+  if(!canOperate)return;
   const trab=document.getElementById('lisTrab').value.trim();
   const ced=document.getElementById('lisCed').value.trim();
   const fecha=document.getElementById('lisFecha').value;
@@ -1237,7 +1237,7 @@ async function registrarSalidaLista(){
 
 // ---- BAJA DE EQUIPOS ----
 async function registrarBaja(){
-  if(!isAlmacenista)return;
+  if(!canOperate)return;
   const herrNombre=document.getElementById('bajaBuscar').value.trim();
   const herrId=document.getElementById('bajaHiddenId').value;
   const cant=parseInt(document.getElementById('bajaCant').value)||1;
@@ -1326,7 +1326,7 @@ function renderLoteItems(){
     </div>`).join('');
 }
 async function registrarEntradaLote(){
-  if(!isAlmacenista)return;
+  if(!canOperate)return;
   const factura=document.getElementById('lotFact').value.trim();
   const proveedor=document.getElementById('lotProv').value.trim();
   const fecha=document.getElementById('lotFecha').value;
@@ -1368,7 +1368,7 @@ async function registrarEntradaLote(){
 }
 
 async function registrarEntrada(){
-  if(!isAlmacenista)return;
+  if(!canOperate)return;
   const herrNombre=document.getElementById('entBuscar').value.trim();
   const herrId=document.getElementById('entHiddenId').value;
   const cant=parseInt(document.getElementById('entCant').value)||0;
@@ -1415,7 +1415,7 @@ async function registrarEntrada(){
 }
 
 async function registrarSalida(){
-  if(!isAlmacenista)return;
+  if(!canOperate)return;
   const herrNombre=document.getElementById('salBuscar').value.trim();
   const herrId=document.getElementById('salHiddenId').value;
   const cant=parseInt(document.getElementById('salCant').value)||0;
@@ -1457,7 +1457,7 @@ async function registrarSalida(){
 }
 
 async function registrarDevolucion(){
-  if(!isAlmacenista)return;
+  if(!canOperate)return;
   if(!devSelected){alert('Selecciona un artículo para devolver');return;}
   const cant=parseInt(document.getElementById('devCant').value)||0;
   const fecha=document.getElementById('devFecha').value;
@@ -1902,7 +1902,7 @@ function acSearch(input,listId,hiddenId){
     });
     list.appendChild(div);
   });
-  if(isAlmacenista&&!isSalida){
+  if(canOperate&&!isSalida){
     const addDiv=document.createElement('div');
     addDiv.className='ac-item add-new';
     addDiv.textContent='➕ Agregar artículo nuevo';
@@ -2003,11 +2003,11 @@ function buscarPazSalvo(){
     const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
     const codigo='PS-'+Date.now().toString(36).toUpperCase();
     res.innerHTML='<div class="paz-box"><div class="paz-title">✅ A PAZ Y SALVO</div><div style="font-size:11px;color:var(--gr);margin-top:3px">'+(trab.trabajador||'—')+' · CC '+cedula+'</div><div style="font-size:10px;color:var(--gr);margin-top:2px">'+fecha+'</div><div style="font-size:9px;color:var(--gr);margin-top:2px">Código: '+codigo+'</div></div>'
-      +(isAlmacenista?'<div class="fg"><label>Nombre completo</label><input type="text" id="pazNombre" value="'+(trab.trabajador||'').replace(/"/g,'&quot;')+'" placeholder="Nombre completo"/></div>'
+      +(canOperate?'<div class="fg"><label>Nombre completo</label><input type="text" id="pazNombre" value="'+(trab.trabajador||'').replace(/"/g,'&quot;')+'" placeholder="Nombre completo"/></div>'
       +'<div class="fg"><label>Correo para enviar</label><input type="email" id="pazEmail" value="'+(trab.email||'')+'" placeholder="correo@ejemplo.com"/></div>'
       +'<button class="btn yellow" id="btnPazSalvo">📧 Generar y enviar Paz y Salvo</button>':'');
   // Attach click handler safely
-  if(isAlmacenista){
+  if(canOperate){
     setTimeout(()=>{
       const btn=document.getElementById('btnPazSalvo');
       if(btn)btn.addEventListener('click',()=>generarPazYSalvo(cedula,codigo));

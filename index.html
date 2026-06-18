@@ -492,8 +492,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <p>Importar inventario desde Excel (reemplaza todo)</p>
     </div>
     <div style="background:var(--bll);border-radius:7px;padding:8px 10px;margin-bottom:14px;font-size:10px;color:var(--bl)">
-      ℹ️ Columnas esperadas: Nombre · Código · Marca · Descripción · Categoría · Cantidad<br>
-      La importación reemplaza todo el inventario actual.
+      ℹ️ Columnas esperadas: ID · Código · Descripción · Marca · Categoría · Cantidad Total · Disponible · Stock Mínimo · Proveedor · Valor Unitario · Observaciones<br>
+      Puede importar el mismo archivo que exporta la app. La importación reemplaza todo el inventario actual.
     </div>
 
     <div class="sec-title" style="margin-top:4px">Paz y Salvo de Almacén</div>
@@ -894,6 +894,11 @@ async function loadMovimientos(){
     const snap=await db.collection('movimientos').orderBy('fecha','desc').limit(100).get();
     movimientos=snap.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){movimientos=[];}
+  // Cargar paz y salvo para export
+  try{
+    const snapPaz=await db.collection('pazysalvos').orderBy('fecha','desc').get();
+    window._pazySalvos=snapPaz.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){window._pazySalvos=[];}
   renderHistorial(movimientos);
   loadDashboard();
 }
@@ -1563,38 +1568,151 @@ async function importarExcel(input){
 
 function exportarExcel(){
   const wb=XLSX.utils.book_new();
-  // Sheet INVENTARIO
-  const invData=[
-    ['N°','Nombre Herramienta','Código','Marca','Descripción','Categoría','Cantidad Total','Disponible','Estado']
-  ];
-  inventario.forEach((item,i)=>{
-    const estado=item.disponible===0?'AGOTADO':item.disponible<=2?'STOCK BAJO':'DISPONIBLE';
-    invData.push([i+1,item.nombre,item.codigo||'',item.marca||'',item.descripcion||'',item.categoria,item.cantidad,item.disponible,estado]);
+  const fecha=new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
+
+  // ── HOJA 1: INVENTARIO ──────────────────────────────────────────────────────
+  // Calcular unidades asignadas por artículo (salidas con cantPendiente > 0)
+  const asignadosPorId={};
+  movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).forEach(m=>{
+    if(m.herrId) asignadosPorId[m.herrId]=(asignadosPorId[m.herrId]||0)+(m.cantPendiente||0);
+  });
+
+  const invHeaders=['ID','Código','Descripción','Marca','Categoría','Cantidad Total','Disponible','Asignado','Stock Mínimo','Proveedor','Valor Unitario','Fecha Último Ingreso','Observaciones'];
+  const invData=[invHeaders];
+  inventario.forEach(item=>{
+    const asignado=asignadosPorId[item.id]||0;
+    // Fecha último ingreso: buscar la entrada más reciente de este artículo
+    const entradas=movimientos.filter(m=>m.tipo==='entrada'&&m.herrId===item.id);
+    const ultimaEntrada=entradas.length?entradas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))[0]:null;
+    const fechaIngreso=ultimaEntrada?(ultimaEntrada.fechaIngreso||ultimaEntrada.fecha?.split('T')[0]||''):'';
+    invData.push([
+      item.id||'',
+      item.codigo||'',
+      item.nombre||'',
+      item.marca||'',
+      item.categoria||'',
+      item.cantidad||0,
+      item.disponible||0,
+      asignado,
+      item.stockMinimo||0,
+      item.proveedor||'',
+      item.valor||'',
+      fechaIngreso,
+      item.observaciones||''
+    ]);
   });
   const wsInv=XLSX.utils.aoa_to_sheet(invData);
+  // Anchos de columna
+  wsInv['!cols']=[{wch:18},{wch:12},{wch:38},{wch:16},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:20},{wch:14},{wch:18},{wch:28}];
   XLSX.utils.book_append_sheet(wb,wsInv,'INVENTARIO');
-  // Sheet ENTRADAS
-  const entData=[['N°','Fecha Ingreso','Nombre Herramienta','Código','Marca','Descripción','Categoría','Cantidad','Proveedor','N° Factura','$ Valor unid','Observaciones']];
+
+  // ── HOJA 2: ENTRADAS ────────────────────────────────────────────────────────
+  const entHeaders=['N°','Fecha Ingreso','Descripción','Código','Marca','Categoría','Cantidad','Proveedor','N° Factura','Valor Unitario','Registrado por','Observaciones'];
+  const entData=[entHeaders];
   movimientos.filter(m=>m.tipo==='entrada').forEach((m,i)=>{
-    entData.push([i+1,m.fechaIngreso||m.fecha?.split('T')[0]||'',m.herrNombre||m.nombre||'',m.codigo||'',m.marca||'',m.descripcion||'',m.categoria||'',m.cantidad,m.proveedor||'',m.factura||'',m.valor||'',m.observaciones||'']);
+    entData.push([
+      i+1,
+      m.fechaIngreso||m.fecha?.split('T')[0]||'',
+      m.herrNombre||m.nombre||'',
+      m.codigo||'',
+      m.marca||'',
+      m.categoria||'',
+      m.cantidad||0,
+      m.proveedor||'',
+      m.factura||'',
+      m.valor||'',
+      m.creadoPor||'',
+      m.observaciones||''
+    ]);
   });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(entData),'ENTRADAS');
-  // Sheet SALIDAS
-  const salData=[['N°','Fecha Salida','Nombre Herramienta','Categoría','Cantidad','Responsable','Cédula','Obra/Área','Correo','Observaciones','Cant. Pendiente']];
+  const wsEnt=XLSX.utils.aoa_to_sheet(entData);
+  wsEnt['!cols']=[{wch:5},{wch:14},{wch:38},{wch:12},{wch:16},{wch:14},{wch:10},{wch:20},{wch:16},{wch:14},{wch:28},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,wsEnt,'ENTRADAS');
+
+  // ── HOJA 3: SALIDAS Y DEVOLUCIONES ──────────────────────────────────────────
+  const salHeaders=[
+    'N°','Artículo','Código','Trabajador','Cédula',
+    'Cant. Salida','Fecha Salida',
+    'Cant. Devuelta','Fecha Devolución','Cant. Pendiente','Estado',
+    'Foto Salida','Firma Salida','Foto Devolución','Firma Devolución','Registrado por'
+  ];
+  const salData=[salHeaders];
   movimientos.filter(m=>m.tipo==='salida').forEach((m,i)=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===m.cedula&&d.herrId===m.herrId);
-    const devTotal=devs.reduce((s,d)=>s+(d.cantidad||0),0);
-    const pend=Math.max(0,(m.cantidad||0)-devTotal);
-    salData.push([i+1,m.fechaSalida||m.fecha?.split('T')[0]||'',m.herrNombre||'',m.categoria||'',m.cantidad,m.trabajador||'',m.cedula||'',m.obra||'',m.email||'',m.observaciones||'',pend]);
+    // Buscar devoluciones asociadas a esta salida
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&(d.salidaRef===m.id||(d.cedula===m.cedula&&d.herrId===m.herrId)));
+    const cantDev=devs.reduce((s,d)=>s+(d.cantidad||0),0);
+    const cantPend=m.cantPendiente!==undefined?m.cantPendiente:Math.max(0,(m.cantidad||0)-cantDev);
+    const ultimaDev=devs.length?devs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))[0]:null;
+    let estado='Pendiente';
+    if(cantPend===0) estado='Devuelto Completo';
+    else if(cantDev>0) estado='Devuelto Parcial';
+    salData.push([
+      i+1,
+      m.herrNombre||'',
+      m.codigo||'',
+      m.trabajador||'',
+      m.cedula||'',
+      m.cantidad||0,
+      m.fechaSalida||m.fecha?.split('T')[0]||'',
+      cantDev||0,
+      ultimaDev?(ultimaDev.fechaDevolucion||ultimaDev.fecha?.split('T')[0]||''):'',
+      cantPend,
+      estado,
+      m.foto?'Sí':'No',
+      m.firma?'Sí':'No',
+      ultimaDev&&ultimaDev.foto?'Sí':'No',
+      ultimaDev&&ultimaDev.firma?'Sí':'No',
+      m.creadoPor||''
+    ]);
   });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(salData),'SALIDAS');
-  // Sheet DEVOLUCIONES
-  const devData=[['N°','Fecha Devolución','Nombre Herramienta','Cantidad','Responsable','Cédula','Estado','Observaciones']];
-  movimientos.filter(m=>m.tipo==='devolucion').forEach((m,i)=>{
-    devData.push([i+1,m.fechaDevolucion||m.fecha?.split('T')[0]||'',m.herrNombre||'',m.cantidad,m.trabajador||'',m.cedula||'',m.estado||'',m.observaciones||'']);
+  const wsSal=XLSX.utils.aoa_to_sheet(salData);
+  wsSal['!cols']=[{wch:5},{wch:36},{wch:12},{wch:22},{wch:14},{wch:12},{wch:14},{wch:14},{wch:16},{wch:14},{wch:18},{wch:12},{wch:12},{wch:15},{wch:15},{wch:26}];
+  XLSX.utils.book_append_sheet(wb,wsSal,'SALIDAS Y DEVOLUCIONES');
+
+  // ── HOJA 4: ASIGNADOS ACTUALES ──────────────────────────────────────────────
+  const asigHeaders=['Artículo','Código','Trabajador','Cédula','Cant. Pendiente','Fecha Salida','Días Asignado'];
+  const asigData=[asigHeaders];
+  const hoy=new Date();
+  movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).forEach(m=>{
+    const fechaSal=m.fechaSalida?new Date(m.fechaSalida):new Date(m.fecha);
+    const dias=isNaN(fechaSal)?'':Math.floor((hoy-fechaSal)/(1000*60*60*24));
+    asigData.push([
+      m.herrNombre||'',
+      m.codigo||'',
+      m.trabajador||'',
+      m.cedula||'',
+      m.cantPendiente||0,
+      m.fechaSalida||m.fecha?.split('T')[0]||'',
+      dias
+    ]);
   });
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(devData),'DEVOLUCIONES');
-  const fecha=new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
+  const wsAsig=XLSX.utils.aoa_to_sheet(asigData);
+  wsAsig['!cols']=[{wch:36},{wch:12},{wch:22},{wch:14},{wch:14},{wch:14},{wch:13}];
+  XLSX.utils.book_append_sheet(wb,wsAsig,'ASIGNADOS ACTUALES');
+
+  // ── HOJA 5: PAZ Y SALVO ─────────────────────────────────────────────────────
+  const pazHeaders=['Cédula','Nombre','Correo','Fecha Emisión','Estado','Código de Verificación'];
+  const pazData=[pazHeaders];
+  // Los registros de paz y salvo están en Firestore, los cargamos desde movimientos de tipo pazysalvo si existen,
+  // o buscamos en colección separada a través de snapshot local si está disponible
+  if(window._pazySalvos&&window._pazySalvos.length){
+    window._pazySalvos.forEach(p=>{
+      pazData.push([
+        p.cedula||'',
+        p.nombre||'',
+        p.email||'',
+        p.fecha?new Date(p.fecha).toLocaleDateString('es-CO'):'',
+        'Emitido',
+        p.codigo||''
+      ]);
+    });
+  } else {
+    pazData.push(['','','','','Sin registros exportados en esta sesión','']);
+  }
+  const wsPaz=XLSX.utils.aoa_to_sheet(pazData);
+  wsPaz['!cols']=[{wch:14},{wch:28},{wch:30},{wch:16},{wch:12},{wch:36}];
+  XLSX.utils.book_append_sheet(wb,wsPaz,'PAZ Y SALVO');
+
   XLSX.writeFile(wb,`SERSAN_Almacen_${fecha}.xlsx`);
 }
 
@@ -1609,52 +1727,70 @@ async function importarExcelCompleto(input){
       const ws=wb.Sheets['INVENTARIO']||wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       if(rows.length<2){alert('El archivo está vacío o sin datos');return;}
-      // Detect columns: first row is header
-      // Expected: Nombre · Código · Marca · Descripción · Categoría · Cantidad
-      // Also accept exported format: N° · Nombre · Código · Marca · Descripción · Categoría · Cantidad Total · Disponible
       const header=rows[0].map(h=>String(h).toLowerCase().trim());
+      // Detectar columnas — soporta formato nuevo (Descripción) y formato viejo (Nombre)
       const idx={
+        id:header.findIndex(h=>h==='id'),
+        descripcion:header.findIndex(h=>h.includes('descripción')||h.includes('descripcion')),
         nombre:header.findIndex(h=>h.includes('nombre')||h.includes('herramienta')||h.includes('artículo')||h.includes('articulo')),
         codigo:header.findIndex(h=>h.includes('código')||h.includes('codigo')),
         marca:header.findIndex(h=>h.includes('marca')),
-        descripcion:header.findIndex(h=>h.includes('descripción')||h.includes('descripcion')),
         categoria:header.findIndex(h=>h.includes('categoría')||h.includes('categoria')),
         cantidad:header.findIndex(h=>h.includes('cantidad total')||h.includes('cantidad')),
         disponible:header.findIndex(h=>h.includes('disponible')),
+        stockMinimo:header.findIndex(h=>h.includes('stock mínimo')||h.includes('stock minimo')||h.includes('stocmin')),
+        proveedor:header.findIndex(h=>h.includes('proveedor')),
+        valor:header.findIndex(h=>h.includes('valor')),
+        observaciones:header.findIndex(h=>h.includes('observaciones')),
       };
-      if(idx.nombre<0){alert('No se encontró columna "Nombre" en el Excel');return;}
+      // El campo de nombre/descripción: primero busca Descripción (nuevo), luego Nombre (viejo)
+      const colDesc=idx.descripcion>=0?idx.descripcion:idx.nombre;
+      if(colDesc<0){alert('No se encontró columna "Descripción" o "Nombre" en el Excel');return;}
       const newInventario=[];
       for(let i=1;i<rows.length;i++){
         const row=rows[i];
-        const nombre=String(row[idx.nombre]||'').trim();
-        if(!nombre)continue;
+        const desc=String(row[colDesc]||'').trim();
+        if(!desc)continue;
         const cant=idx.cantidad>=0?parseInt(row[idx.cantidad])||0:0;
         const disp=idx.disponible>=0?parseInt(row[idx.disponible])||cant:cant;
+        // Si viene ID del Excel exportado, lo reutilizamos para mantener trazabilidad
+        const existingId=idx.id>=0?String(row[idx.id]||'').trim():'';
+        const itemId=existingId||('imp_'+i+'_'+Date.now());
         newInventario.push({
-          id:'imp_'+i+'_'+Date.now(),
-          nombre,
+          id:itemId,
+          nombre:desc,
           codigo:idx.codigo>=0?String(row[idx.codigo]||'').trim():'',
           marca:idx.marca>=0?String(row[idx.marca]||'').trim():'',
-          descripcion:idx.descripcion>=0?String(row[idx.descripcion]||'').trim():'',
+          descripcion:'',
           categoria:idx.categoria>=0?String(row[idx.categoria]||'Herramientas').trim():'Herramientas',
-          cantidad:cant,disponible:disp,
-          proveedor:'',factura:'',valor:'',observaciones:''
+          cantidad:cant,
+          disponible:disp,
+          stockMinimo:idx.stockMinimo>=0?parseInt(row[idx.stockMinimo])||0:0,
+          proveedor:idx.proveedor>=0?String(row[idx.proveedor]||'').trim():'',
+          valor:idx.valor>=0?String(row[idx.valor]||'').trim():'',
+          observaciones:idx.observaciones>=0?String(row[idx.observaciones]||'').trim():''
         });
       }
       if(!newInventario.length){alert('No se encontraron artículos en el archivo');return;}
-      // Delete all existing Firestore inventory
+      // Eliminar inventario actual en Firestore
       const snap=await db.collection('inventario').get();
       const delBatch=db.batch();
       snap.docs.forEach(d=>delBatch.delete(d.ref));
       await delBatch.commit();
-      // Write new inventory in batches of 499
+      // Escribir nuevo inventario en bloques de 499
       const CHUNK=499;
       for(let i=0;i<newInventario.length;i+=CHUNK){
         const chunk=newInventario.slice(i,i+CHUNK);
         const batch=db.batch();
         chunk.forEach(item=>{
           const ref=db.collection('inventario').doc(item.id);
-          batch.set(ref,{nombre:item.nombre,codigo:item.codigo,marca:item.marca,descripcion:item.descripcion,categoria:item.categoria,cantidad:item.cantidad,disponible:item.disponible});
+          batch.set(ref,{
+            nombre:item.nombre,codigo:item.codigo,marca:item.marca,
+            descripcion:item.descripcion,categoria:item.categoria,
+            cantidad:item.cantidad,disponible:item.disponible,
+            stockMinimo:item.stockMinimo,proveedor:item.proveedor,
+            valor:item.valor,observaciones:item.observaciones
+          });
         });
         await batch.commit();
       }

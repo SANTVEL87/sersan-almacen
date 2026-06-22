@@ -651,6 +651,7 @@ db.enablePersistence().catch(()=>{});
 
 
 const ALMACENISTA='sersanalmacen01@gmail.com';
+const ALMACENISTAS_TEST=['sersanmantenimiento@gmail.com']; // acceso completo temporal para pruebas
 const ADMINS=['sersanperu1@gmail.com','sersanmantenimiento@gmail.com'];
 const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
 
@@ -667,7 +668,7 @@ window.addEventListener('offline',()=>{document.getElementById('offlineBanner').
 auth.onAuthStateChanged(user=>{
   if(user){
     if(!AUTORIZADOS.includes(user.email)){auth.signOut();document.getElementById('loginErr').textContent='Correo no autorizado: '+user.email;return;}
-    currentUser=user;isAlmacenista=(user.email===ALMACENISTA);isAdmin=ADMINS.includes(user.email);canOperate=isAlmacenista||isAdmin;
+    currentUser=user;isAlmacenista=(user.email===ALMACENISTA||ALMACENISTAS_TEST.includes(user.email));isAdmin=ADMINS.includes(user.email);canOperate=isAlmacenista||isAdmin;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='flex';
     const nombre=user.displayName||user.email;

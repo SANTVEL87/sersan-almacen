@@ -871,7 +871,7 @@ function showItemDetail(id){
     ${asig.length>0?`<div style="font-size:10px;color:var(--tx2);margin-top:4px">📤 Asignado a: ${asig.map(s=>s.trabajador||'—').join(', ')} (${asig.length} salida(s) pendiente(s))</div>`:''}
   `;
   document.getElementById('modalItemTitulo').innerHTML=item.nombre;
-  document.getElementById('modalItemDetail').classList.add('open');
+  openModal('modalItemDetail');
 }
 
 // ---- DASHBOARD ----
@@ -1039,7 +1039,7 @@ function showTrabajadorDetail(cedula){
     });
   }
 
-  document.getElementById('modalTrabajador').classList.add('open');
+  openModal('modalTrabajador');
 }
 
 function buscarDevPorCedula(){
@@ -1385,11 +1385,30 @@ async function registrarEntrada(){
   const btn=document.querySelector('#tEnt .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const fotoArticulo=getPhotoB64('prevEntArt');
+  const codigo=document.getElementById('entCodigo').value;
+  const marca=document.getElementById('entMarca').value;
+  const descripcion=document.getElementById('entDesc').value;
+  let finalHerrId=herrId;
+  // Si el artículo no existe en inventario (no fue seleccionado de la lista ni creado por el modal),
+  // se crea automáticamente para no perder el registro.
+  if(!finalHerrId){
+    const existente=inventario.find(i=>i.nombre&&i.nombre.trim().toLowerCase()===herrNombre.toLowerCase());
+    if(existente){
+      finalHerrId=existente.id;
+    } else {
+      const newItem={nombre:herrNombre,categoria:currentMovCat,codigo,marca,descripcion,cantidad:0,disponible:0};
+      try{
+        const ref=await db.collection('inventario').add(newItem);
+        newItem.id=ref.id;
+      }catch(e){newItem.id='local_'+Date.now();}
+      if(fotoArticulo){newItem.fotoArticulo=fotoArticulo;}
+      inventario.push(newItem);
+      finalHerrId=newItem.id;
+    }
+  }
   const data={
-    tipo:'entrada',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,
-    codigo:document.getElementById('entCodigo').value,
-    marca:document.getElementById('entMarca').value,
-    descripcion:document.getElementById('entDesc').value,
+    tipo:'entrada',herrId:finalHerrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,
+    codigo,marca,descripcion,
     proveedor:document.getElementById('entProv').value,
     factura:document.getElementById('entFact').value,
     valor:document.getElementById('entValor').value,
@@ -1398,16 +1417,16 @@ async function registrarEntrada(){
     foto:getPhotoB64('prevEnt')
   };
   const res=await guardarMov(data);
-  if(herrId){
-    const item=inventario.find(i=>i.id===herrId);
+  if(finalHerrId){
+    const item=inventario.find(i=>i.id===finalHerrId);
     if(item){
       item.cantidad+=cant;item.disponible+=cant;
       const upd={cantidad:item.cantidad,disponible:item.disponible};
-      if(fotoArticulo)upd.fotoArticulo=fotoArticulo;
-      if(fotoArticulo)item.fotoArticulo=fotoArticulo;
-      try{await db.collection('inventario').doc(herrId).update(upd);}catch(e){}
+      if(fotoArticulo){upd.fotoArticulo=fotoArticulo;item.fotoArticulo=fotoArticulo;}
+      try{await db.collection('inventario').doc(finalHerrId).update(upd);}catch(e){}
     }
   }
+  renderInv(inventario);loadDashboard();
   btn.innerHTML='✓ Registrar entrada al almacén';btn.disabled=false;
   document.getElementById('succH').textContent='¡Entrada registrada!';
   document.getElementById('succSub').textContent=cant+' × '+herrNombre;
@@ -1813,7 +1832,7 @@ function solicitarAnulacion(movId){
     (mov.tipo==='salida'?'Salida a '+(mov.trabajador||'—'):mov.tipo==='devolucion'?'Devolución de '+(mov.trabajador||'—'):'Entrada · '+(mov.factura||''))+
     ' · '+(mov.fechaSalida||mov.fechaIngreso||mov.fecha||'').split('T')[0];
   document.getElementById('anulDetalle').value='';
-  document.getElementById('modalSolicitudAnul').classList.add('open');
+  openModal('modalSolicitudAnul');
 }
 async function confirmarSolicitudAnulacion(){
   if(!anulMovActual)return;
@@ -2007,7 +2026,27 @@ function verImagenBtn(btn){
     verImagen(src,esFirma);
   }catch(e){console.log('Error',e);}
 }
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+// ---- BACK BUTTON / MODAL HISTORY HANDLING ----
+// Evita que el botón "atrás" del navegador/PWA cierre toda la app cuando hay
+// un modal abierto: en su lugar, cierra el modal. Esto soluciona el problema
+// de quedar atascado y tener que cerrar la app para continuar.
+let _modalOpenViaHistory=false;
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  history.pushState({modalOpen:id},'');
+}
+function closeModal(id){
+  const el=document.getElementById(id);
+  if(el)el.classList.remove('open');
+  if(!_modalOpenViaHistory && history.state && history.state.modalOpen===id){
+    history.back();
+  }
+}
+window.addEventListener('popstate',function(e){
+  _modalOpenViaHistory=true;
+  document.querySelectorAll('.modal-overlay.open, .detail-modal.open').forEach(m=>m.classList.remove('open'));
+  _modalOpenViaHistory=false;
+});
 document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))document.querySelectorAll('.autocomplete-list').forEach(l=>l.classList.remove('open'));});
 
 function acSearch(input,listId,hiddenId){
@@ -2094,7 +2133,7 @@ function showAsigPorItem(id,nombre){
 function openNuevoItem(){
   const buscar=document.getElementById('entBuscar');
   if(buscar)document.getElementById('nuevoNombre').value=buscar.value||'';
-  document.getElementById('modalNuevoItem').classList.add('open');
+  openModal('modalNuevoItem');
 }
 
 async function guardarNuevoItem(){

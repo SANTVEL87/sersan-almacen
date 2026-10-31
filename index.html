@@ -237,8 +237,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <div class="fg"><label>Foto de factura (opcional)</label>
           <div class="photo-box" id="pbEnt">
-            <input type="file" accept="image/*,application/pdf" capture="environment" onchange="prevPhoto(this,'prevEnt','pbEnt')"/>
-            <span class="ico">📷</span><p>Tomar foto o cargar PDF</p>
+            <input type="file" accept="image/*,application/pdf" onchange="prevPhoto(this,'prevEnt','pbEnt')"/>
+            <span class="ico">📎</span><p>Tomar foto, elegir de la galería o cargar PDF</p>
           </div>
           <img id="prevEnt" class="photo-preview"/>
         </div>
@@ -251,10 +251,10 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <div class="fg"><label>N° Factura / Remisión <span class="req-indicator">*</span></label><input type="text" id="lotFact" placeholder="FAC-2026-001"/></div>
           <div class="fg"><label>Proveedor</label><input type="text" id="lotProv" placeholder="Nombre del proveedor"/></div>
           <div class="fg"><label>Fecha de ingreso <span class="req-indicator">*</span></label><input type="date" id="lotFecha"/></div>
-          <div class="fg"><label>Foto de factura (opcional)</label>
+          <div class="fg"><label>Factura del lote: foto o PDF (opcional)</label>
             <div class="photo-box" id="pbLotFact">
-              <input type="file" accept="image/*,application/pdf" capture="environment" onchange="prevPhoto(this,'prevLotFact','pbLotFact')"/>
-              <span class="ico">📷</span><p>Foto de la factura del lote</p>
+              <input type="file" accept="image/*,application/pdf" onchange="prevPhoto(this,'prevLotFact','pbLotFact')"/>
+              <span class="ico">📎</span><p>Tomar foto, elegir de la galería o cargar PDF</p>
             </div>
             <img id="prevLotFact" class="photo-preview"/>
           </div>
@@ -980,6 +980,11 @@ function renderHistorial(movs){
     const meta=m.tipo==='salida'?`${m.trabajador||''} · CC ${m.cedula||''} · ${m.obra||''}`:m.tipo==='devolucion'?`${m.trabajador||''} devolvió`:m.tipo==='baja'?`Baja · ${m.motivo||''}`:m.tipo==='traslado'?(esTrasEntra?`Traslado recibido de ${ccNombre(m.cc)}`:`Traslado enviado a ${ccNombre(m.ccDestino)}`)+(m.responsable?` · ${m.responsable}`:''):(m.proveedor||'Entrada');
     const anulBadge=m.anulado?'<span style="font-size:8px;background:var(--rd);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px">ANULADO</span>':'';
     const anulMeta=m.anulado?`<div class="mov-meta" style="color:var(--rd);font-size:8px">Anulado: ${m.motivoAnulacion||''}</div>`:'';
+    let facBtn='';
+    if(m.tipo==='entrada'&&(m.facturaId||m.foto)){
+      const fn=m.facturaId?`verFactura('${m.facturaId}')`:`verFotoMov('${m.id}')`;
+      facBtn=`<button onclick="${fn}" style="margin-top:4px;margin-right:4px;padding:3px 8px;background:var(--bll);color:var(--bl);border:1px solid #B5D4F4;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer">📄 Ver factura</button>`;
+    }
     let anulBtn='';
     if(canOperate&&!isAdmin&&!m.anulado&&m.tipo!=='baja'&&m.tipo!=='traslado'){
       if(pendMovIds.has(m.id)){
@@ -988,7 +993,7 @@ function renderHistorial(movs){
         anulBtn=`<button onclick="solicitarAnulacion('${m.id}')" style="margin-top:4px;padding:3px 8px;background:var(--rdl);color:var(--rd);border:1px solid #ffb3b3;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer">🚫 Solicitar anulación</button>`;
       }
     }
-    return `<div class="mov-row${m.anulado?' anulado':''}"><div class="mov-dot ${x.cls}">${x.ico}</div><div style="flex:1;min-width:0"><div class="mov-name">${m.herrNombre||m.nombre||'—'} ×${m.cantidad}${anulBadge}</div><div class="mov-meta">${meta}</div><div class="mov-meta">${fechaStr}</div>${anulMeta}${anulBtn}</div><div class="mov-qty ${x.cls}">${m.anulado?'':x.pre}${m.cantidad}</div></div>`;
+    return `<div class="mov-row${m.anulado?' anulado':''}"><div class="mov-dot ${x.cls}">${x.ico}</div><div style="flex:1;min-width:0"><div class="mov-name">${m.herrNombre||m.nombre||'—'} ×${m.cantidad}${anulBadge}</div><div class="mov-meta">${meta}</div><div class="mov-meta">${fechaStr}</div>${anulMeta}${facBtn}${anulBtn}</div><div class="mov-qty ${x.cls}">${m.anulado?'':x.pre}${m.cantidad}</div></div>`;
   }).join(''):'<div class="no-results">Sin movimientos aún</div>';
 }
 function filterHistCat(btn,cat){currentHistCat=cat;document.getElementById('scHistorial').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderHistorial(movimientos);}
@@ -1204,6 +1209,49 @@ function checkSalidaReqs(){
   }
 }
 
+// ---- FACTURAS ADJUNTAS (foto o PDF) ----
+// Se guardan una sola vez en la colección "facturas"; los movimientos guardan solo la referencia (facturaId).
+const FACTURA_PREVIEWS=['prevEnt','prevLotFact'];
+const MAX_PDF_KB=650; // Firestore admite documentos de máximo 1 MB
+let archivosFactura={};
+async function guardarArchivoFactura(previewId,meta){
+  const pdf=archivosFactura[previewId];
+  const img=getPhotoB64(previewId);
+  if(!pdf&&!img)return null;
+  const docF={tipo:pdf?'pdf':'imagen',nombre:pdf?pdf.nombre:'factura.jpg',data:pdf?pdf.data:img,
+    factura:meta.factura||'',proveedor:meta.proveedor||'',cc:ccActivo,creadoPor:currentUser.email,fecha:new Date().toISOString()};
+  try{
+    const ref=await db.collection('facturas').add(docF);
+    return {id:ref.id,nombre:docF.nombre,tipo:docF.tipo};
+  }catch(e){return {error:e.message,tipo:docF.tipo,data:docF.data};}
+}
+function limpiarArchivoFactura(previewId,boxId){
+  delete archivosFactura[previewId];
+  document.getElementById(previewId).style.display='none';
+  const box=document.getElementById(boxId);box.style.display='block';
+  const inp=box.querySelector('input[type=file]');if(inp)inp.value='';
+  box.querySelector('p').textContent='Tomar foto, elegir de la galería o cargar PDF';
+}
+function dataUrlABlobUrl(dataUrl){
+  const [cab,b64]=dataUrl.split(',');
+  const mime=(cab.match(/data:([^;]+)/)||[])[1]||'application/octet-stream';
+  const bin=atob(b64);const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([arr],{type:mime}));
+}
+async function verFactura(facturaId){
+  const win=window.open('','_blank'); // se abre antes de esperar a Firestore para que Safari no la bloquee
+  try{
+    const d=await db.collection('facturas').doc(facturaId).get();
+    if(!d.exists){if(win)win.close();alert('No se encontró el archivo de la factura');return;}
+    const f=d.data();
+    if(f.tipo==='imagen'){if(win)win.close();verImagen(f.data,false);return;}
+    const url=dataUrlABlobUrl(f.data);
+    if(win)win.location.href=url;
+    else{const a=document.createElement('a');a.href=url;a.target='_blank';a.download=f.nombre||'factura.pdf';document.body.appendChild(a);a.click();a.remove();}
+  }catch(e){if(win)win.close();alert('No se pudo abrir la factura: '+e.message);}
+}
+function verFotoMov(movId){const m=movimientosAll.find(x=>x.id===movId);if(m&&m.foto)verImagen(m.foto,false);}
 function getPhotoB64(imgId){const img=document.getElementById(imgId);return img&&img.style.display!=='none'?img.src:null;}
 
 // ---- SALIDA MODE TOGGLE ----
@@ -1405,7 +1453,13 @@ async function registrarEntradaLote(){
   if(!entLoteItems.length){alert('Agrega al menos un artículo al lote');return;}
   const btn=document.querySelector('#entModoLot .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
-  const fotoFactura=getPhotoB64('prevLotFact');
+  const fac=await guardarArchivoFactura('prevLotFact',{factura,proveedor});
+  if(fac&&fac.error){
+    if(!confirm('No se pudo guardar el archivo de la factura ('+fac.error+').\n¿Registrar el lote sin el archivo adjunto?')){
+      btn.innerHTML='✓ Registrar lote al almacén';btn.disabled=false;return;
+    }
+  }
+  const facOk=fac&&!fac.error?fac:null;
   let saved=0;
   for(const it of entLoteItems){
     it.herrId=await crearDesdeCatalogo(it.herrId);
@@ -1414,8 +1468,9 @@ async function registrarEntradaLote(){
       categoria:it.categoria,cantidad:it.cantidad,
       proveedor,factura,fechaIngreso:fecha,
       observaciones:document.getElementById('lotObs').value,
-      foto:fotoFactura,esLote:true
+      esLote:true
     };
+    if(facOk){data.facturaId=facOk.id;data.facturaArchivo=facOk.nombre;}
     await guardarMov(data);
     if(it.herrId){
       const item=inventario.find(i=>i.id===it.herrId);
@@ -1434,7 +1489,7 @@ async function registrarEntradaLote(){
   entLoteItems=[];renderLoteItems();
   ['lotFact','lotProv','lotObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('lotFecha').value=new Date().toISOString().split('T')[0];
-  document.getElementById('prevLotFact').style.display='none';document.getElementById('pbLotFact').style.display='block';
+  limpiarArchivoFactura('prevLotFact','pbLotFact');
   renderInv(inventario);loadDashboard();
 }
 
@@ -1480,9 +1535,15 @@ async function registrarEntrada(){
     factura:document.getElementById('entFact').value,
     valor:document.getElementById('entValor').value,
     fechaIngreso:fecha,
-    observaciones:document.getElementById('entObs').value,
-    foto:getPhotoB64('prevEnt')
+    observaciones:document.getElementById('entObs').value
   };
+  const fac=await guardarArchivoFactura('prevEnt',{factura:data.factura,proveedor:data.proveedor});
+  if(fac&&!fac.error){data.facturaId=fac.id;data.facturaArchivo=fac.nombre;}
+  else if(fac&&fac.error){
+    // Sin conexión: una foto se guarda en el movimiento como antes; un PDF no se puede guardar sin red
+    if(fac.tipo==='imagen')data.foto=fac.data;
+    else alert('No se pudo guardar el PDF de la factura ('+fac.error+'). La entrada se registra sin el PDF.');
+  }
   const res=await guardarMov(data);
   if(finalHerrId){
     const item=inventario.find(i=>i.id===finalHerrId);
@@ -1502,7 +1563,7 @@ async function registrarEntrada(){
   ['entBuscar','entHiddenId','entCodigo','entMarca','entDesc','entProv','entFact','entValor','entObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('entCant').value='1';
   document.getElementById('entFecha').value=new Date().toISOString().split('T')[0];
-  document.getElementById('prevEnt').style.display='none';document.getElementById('pbEnt').style.display='block';
+  limpiarArchivoFactura('prevEnt','pbEnt');
   document.getElementById('prevEntArt').style.display='none';document.getElementById('pbEntArt').style.display='block';
 }
 
@@ -2234,6 +2295,25 @@ function getSigData(id){const c=document.getElementById(id);if(!c)return null;co
 
 function prevPhoto(input,previewId,boxId){
   const file=input.files[0];if(!file)return;
+  const esFactura=FACTURA_PREVIEWS.includes(previewId);
+  if(esFactura){
+    delete archivosFactura[previewId];
+    if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+      if(file.size>MAX_PDF_KB*1024){
+        alert('El PDF pesa '+Math.round(file.size/1024)+' KB y el máximo es '+MAX_PDF_KB+' KB.\n\nPuedes tomarle una foto a la factura o subir una captura de pantalla del PDF.');
+        input.value='';return;
+      }
+      const r=new FileReader();
+      r.onload=e=>{
+        archivosFactura[previewId]={data:e.target.result,nombre:file.name};
+        document.getElementById(previewId).style.display='none';
+        const box=document.getElementById(boxId);box.style.display='block';
+        box.querySelector('p').textContent='📄 '+file.name+' · toca para cambiar';
+      };
+      r.readAsDataURL(file);
+      return;
+    }
+  }
   if(file.type.startsWith('image/')){
     const r=new FileReader();
     r.onload=e=>{
@@ -2241,13 +2321,13 @@ function prevPhoto(input,previewId,boxId){
       const tmpImg=new Image();
       tmpImg.onload=()=>{
         const canvas=document.createElement('canvas');
-        const MAX=600;
+        const MAX=esFactura?1400:600;
         let w=tmpImg.width,h=tmpImg.height;
         if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
         else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
         canvas.width=w;canvas.height=h;
         canvas.getContext('2d').drawImage(tmpImg,0,0,w,h);
-        const compressed=canvas.toDataURL('image/jpeg',0.5);
+        const compressed=canvas.toDataURL('image/jpeg',esFactura?0.6:0.5);
         const img=document.getElementById(previewId);
         img.src=compressed;img.style.display='block';
         document.getElementById(boxId).style.display='none';

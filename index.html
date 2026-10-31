@@ -241,6 +241,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
             <span class="ico">📎</span><p>Tomar foto, elegir de la galería o cargar PDF</p>
           </div>
           <img id="prevEnt" class="photo-preview"/>
+          <button type="button" id="rmprevEnt" onclick="limpiarArchivoFactura('prevEnt','pbEnt')" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar archivo cargado</button>
         </div>
         <div class="fg"><label>Observaciones</label><textarea id="entObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
         <button class="btn primary" onclick="registrarEntrada()">✓ Registrar entrada al almacén</button>
@@ -248,15 +249,24 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
         <!-- MODO LOTE -->
         <div id="entModoLot" style="display:none">
-          <div class="fg"><label>N° Factura / Remisión <span class="req-indicator">*</span></label><input type="text" id="lotFact" placeholder="FAC-2026-001"/></div>
-          <div class="fg"><label>Proveedor</label><input type="text" id="lotProv" placeholder="Nombre del proveedor"/></div>
           <div class="fg"><label>Fecha de ingreso <span class="req-indicator">*</span></label><input type="date" id="lotFecha"/></div>
-          <div class="fg"><label>Factura del lote: foto o PDF (opcional)</label>
-            <div class="photo-box" id="pbLotFact">
-              <input type="file" accept="image/*,application/pdf" onchange="prevPhoto(this,'prevLotFact','pbLotFact')"/>
-              <span class="ico">📎</span><p>Tomar foto, elegir de la galería o cargar PDF</p>
+          <div class="fg"><label>¿Todos los artículos del lote son de la misma factura? <span class="req-indicator">*</span></label>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="tab" id="lotMismaSi" onclick="setLotModoFactura('una')" style="flex:1">Sí, una sola factura</button>
+              <button type="button" class="tab" id="lotMismaNo" onclick="setLotModoFactura('varias')" style="flex:1">No, varias</button>
             </div>
-            <img id="prevLotFact" class="photo-preview"/>
+          </div>
+          <div id="lotFacturaUnica" style="display:none">
+            <div class="fg"><label>N° Factura / Remisión <span class="req-indicator">*</span></label><input type="text" id="lotFact" placeholder="FAC-2026-001"/></div>
+            <div class="fg"><label>Proveedor</label><input type="text" id="lotProv" placeholder="Nombre del proveedor"/></div>
+            <div class="fg"><label>Factura del lote: foto o PDF (opcional)</label>
+              <div class="photo-box" id="pbLotFact">
+                <input type="file" accept="image/*,application/pdf" onchange="prevPhoto(this,'prevLotFact','pbLotFact')"/>
+                <span class="ico">📎</span><p>Tomar foto, elegir de la galería o cargar PDF</p>
+              </div>
+              <img id="prevLotFact" class="photo-preview"/>
+              <button type="button" id="rmprevLotFact" onclick="limpiarArchivoFactura('prevLotFact','pbLotFact')" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar archivo cargado</button>
+            </div>
           </div>
           <div style="background:var(--bg);border-radius:9px;padding:10px;margin-bottom:10px">
             <div class="sec-title" style="margin-bottom:6px">Agregar artículos al lote</div>
@@ -265,6 +275,19 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
               <div class="autocomplete-list" id="lotAcList"></div>
             </div>
             <input type="hidden" id="lotHiddenId"/>
+            <div id="lotItemFacturaWrap" style="display:none">
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <input type="text" id="lotItemFact" placeholder="N° factura (opcional)" style="flex:1;min-width:0;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px"/>
+                <input type="text" id="lotItemProv" placeholder="Proveedor (opcional)" style="flex:1;min-width:0;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px"/>
+              </div>
+              <div class="photo-box" id="pbLotItem" style="padding:9px;margin-bottom:6px">
+                <input type="file" accept="image/*,application/pdf" onchange="prevPhoto(this,'prevLotItem','pbLotItem')"/>
+                <p style="margin:0;font-size:11px">📎 Adjuntar factura de este artículo (opcional)</p>
+              </div>
+              <img id="prevLotItem" class="photo-preview"/>
+              <button type="button" id="rmprevLotItem" onclick="limpiarArchivoFactura('prevLotItem','pbLotItem')" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar archivo cargado</button>
+              <div style="font-size:9px;color:var(--tx3);margin-bottom:6px">Si varios artículos tienen el mismo N° de factura, basta con adjuntarla una vez.</div>
+            </div>
             <div style="display:flex;gap:6px;margin-bottom:6px">
               <input type="number" id="lotCantItem" value="1" min="1" style="width:70px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
               <button onclick="agregarItemLote()" style="flex:1;padding:8px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar</button>
@@ -1211,14 +1234,31 @@ function checkSalidaReqs(){
 
 // ---- FACTURAS ADJUNTAS (foto o PDF) ----
 // Se guardan una sola vez en la colección "facturas"; los movimientos guardan solo la referencia (facturaId).
-const FACTURA_PREVIEWS=['prevEnt','prevLotFact'];
+const FACTURA_PREVIEWS=['prevEnt','prevLotFact','prevLotItem'];
+let lotModoFactura=null; // 'una' | 'varias'
+function setLotModoFactura(modo){
+  lotModoFactura=modo;
+  const si=document.getElementById('lotMismaSi'),no=document.getElementById('lotMismaNo');
+  si.classList.toggle('active',modo==='una');no.classList.toggle('active',modo==='varias');
+  document.getElementById('lotFacturaUnica').style.display=modo==='una'?'block':'none';
+  document.getElementById('lotItemFacturaWrap').style.display=modo==='varias'?'block':'none';
+  renderLoteItems();
+}
+function mostrarQuitar(previewId,ver){const b=document.getElementById('rm'+previewId);if(b)b.style.display=ver?'block':'none';}
+function leerArchivoFactura(previewId){
+  const pdf=archivosFactura[previewId];
+  if(pdf)return {tipo:'pdf',nombre:pdf.nombre,data:pdf.data};
+  const img=getPhotoB64(previewId);
+  return img?{tipo:'imagen',nombre:'factura.jpg',data:img}:null;
+}
 const MAX_PDF_KB=650; // Firestore admite documentos de máximo 1 MB
 let archivosFactura={};
 async function guardarArchivoFactura(previewId,meta){
-  const pdf=archivosFactura[previewId];
-  const img=getPhotoB64(previewId);
-  if(!pdf&&!img)return null;
-  const docF={tipo:pdf?'pdf':'imagen',nombre:pdf?pdf.nombre:'factura.jpg',data:pdf?pdf.data:img,
+  return guardarArchivoData(leerArchivoFactura(previewId),meta);
+}
+async function guardarArchivoData(arch,meta){
+  if(!arch)return null;
+  const docF={tipo:arch.tipo,nombre:arch.nombre,data:arch.data,
     factura:meta.factura||'',proveedor:meta.proveedor||'',cc:ccActivo,creadoPor:currentUser.email,fecha:new Date().toISOString()};
   try{
     const ref=await db.collection('facturas').add(docF);
@@ -1230,7 +1270,8 @@ function limpiarArchivoFactura(previewId,boxId){
   document.getElementById(previewId).style.display='none';
   const box=document.getElementById(boxId);box.style.display='block';
   const inp=box.querySelector('input[type=file]');if(inp)inp.value='';
-  box.querySelector('p').textContent='Tomar foto, elegir de la galería o cargar PDF';
+  box.querySelector('p').textContent=previewId==='prevLotItem'?'📎 Adjuntar factura de este artículo (opcional)':'Tomar foto, elegir de la galería o cargar PDF';
+  mostrarQuitar(previewId,false);
 }
 function dataUrlABlobUrl(dataUrl){
   const [cab,b64]=dataUrl.split(',');
@@ -1420,7 +1461,15 @@ function agregarItemLote(){
   if(existIdx>=0){entLoteItems[existIdx].cantidad+=cant;}
   else{
     const inv=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
-    entLoteItems.push({herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:''});
+    const nuevo={herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:''};
+    if(lotModoFactura==='varias'){
+      nuevo.factura=document.getElementById('lotItemFact').value.trim();
+      nuevo.proveedor=document.getElementById('lotItemProv').value.trim();
+      nuevo.archivo=leerArchivoFactura('prevLotItem');
+      limpiarArchivoFactura('prevLotItem','pbLotItem');
+      // N° factura y proveedor se conservan para el siguiente artículo de la misma factura
+    }
+    entLoteItems.push(nuevo);
   }
   document.getElementById('lotBuscar').value='';
   document.getElementById('lotHiddenId').value='';
@@ -1438,7 +1487,7 @@ function renderLoteItems(){
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5">
       <div style="flex:1">
         <div style="font-size:11px;font-weight:700">${it.herrNombre}</div>
-        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.</div>
+        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.${lotModoFactura==='varias'?(it.factura?' · Fact. '+it.factura:' · Sin N° factura')+(it.archivo?' · 📄':''):''}</div>
       </div>
       <button onclick="removeItemLote(${i})" style="padding:4px 8px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">✕</button>
     </div>`).join('');
@@ -1448,28 +1497,45 @@ async function registrarEntradaLote(){
   const factura=document.getElementById('lotFact').value.trim();
   const proveedor=document.getElementById('lotProv').value.trim();
   const fecha=document.getElementById('lotFecha').value;
-  if(!factura){alert('El número de factura es obligatorio para el lote');return;}
+  if(!lotModoFactura){alert('Indica si todos los artículos del lote son de la misma factura');return;}
+  if(lotModoFactura==='una'&&!factura){alert('Ingresa el número de factura del lote');return;}
   if(!fecha){alert('Ingresa la fecha de ingreso');return;}
   if(!entLoteItems.length){alert('Agrega al menos un artículo al lote');return;}
   const btn=document.querySelector('#entModoLot .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
-  const fac=await guardarArchivoFactura('prevLotFact',{factura,proveedor});
-  if(fac&&fac.error){
-    if(!confirm('No se pudo guardar el archivo de la factura ('+fac.error+').\n¿Registrar el lote sin el archivo adjunto?')){
-      btn.innerHTML='✓ Registrar lote al almacén';btn.disabled=false;return;
+  // Archivos de factura: uno para todo el lote, o uno por cada N° de factura
+  const facPorItem=new Map();let errFac=null;
+  if(lotModoFactura==='una'){
+    const fac=await guardarArchivoFactura('prevLotFact',{factura,proveedor});
+    if(fac&&fac.error)errFac=fac.error;
+    else if(fac)entLoteItems.forEach(it=>facPorItem.set(it,fac));
+  } else {
+    const grupos=new Map();
+    entLoteItems.forEach((it,k)=>{const key=it.factura?'F:'+it.factura.toLowerCase():'I:'+k;if(!grupos.has(key))grupos.set(key,[]);grupos.get(key).push(it);});
+    for(const items of grupos.values()){
+      const conArch=items.find(it=>it.archivo);
+      if(!conArch)continue;
+      const fac=await guardarArchivoData(conArch.archivo,{factura:conArch.factura,proveedor:conArch.proveedor});
+      if(fac&&fac.error){errFac=fac.error;continue;}
+      items.forEach(it=>facPorItem.set(it,fac));
     }
   }
-  const facOk=fac&&!fac.error?fac:null;
+  if(errFac&&!confirm('No se pudo guardar el archivo de la factura ('+errFac+').\n¿Registrar el lote sin ese archivo adjunto?')){
+    btn.innerHTML='✓ Registrar lote al almacén';btn.disabled=false;return;
+  }
   let saved=0;
   for(const it of entLoteItems){
     it.herrId=await crearDesdeCatalogo(it.herrId);
     const data={
       tipo:'entrada',herrId:it.herrId,herrNombre:it.herrNombre,nombre:it.herrNombre,
       categoria:it.categoria,cantidad:it.cantidad,
-      proveedor,factura,fechaIngreso:fecha,
+      proveedor:lotModoFactura==='una'?proveedor:(it.proveedor||''),
+      factura:lotModoFactura==='una'?factura:(it.factura||''),
+      fechaIngreso:fecha,
       observaciones:document.getElementById('lotObs').value,
       esLote:true
     };
+    const facOk=facPorItem.get(it);
     if(facOk){data.facturaId=facOk.id;data.facturaArchivo=facOk.nombre;}
     await guardarMov(data);
     if(it.herrId){
@@ -1483,13 +1549,19 @@ async function registrarEntradaLote(){
   }
   btn.innerHTML='✓ Registrar lote al almacén';btn.disabled=false;
   document.getElementById('succH').textContent='¡Lote registrado!';
-  document.getElementById('succSub').textContent=saved+' artículo(s) ingresados · Factura: '+factura;
+  document.getElementById('succSub').textContent=saved+' artículo(s) ingresados'+(lotModoFactura==='una'?' · Factura: '+factura:'');
   document.getElementById('succNote').textContent='Guardado en la nube ✅';
   navTo('scSuccess','Confirmación');
   entLoteItems=[];renderLoteItems();
   ['lotFact','lotProv','lotObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('lotFecha').value=new Date().toISOString().split('T')[0];
   limpiarArchivoFactura('prevLotFact','pbLotFact');
+  limpiarArchivoFactura('prevLotItem','pbLotItem');
+  ['lotItemFact','lotItemProv'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  lotModoFactura=null;
+  ['lotMismaSi','lotMismaNo'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('lotFacturaUnica').style.display='none';
+  document.getElementById('lotItemFacturaWrap').style.display='none';
   renderInv(inventario);loadDashboard();
 }
 
@@ -2309,6 +2381,7 @@ function prevPhoto(input,previewId,boxId){
         document.getElementById(previewId).style.display='none';
         const box=document.getElementById(boxId);box.style.display='block';
         box.querySelector('p').textContent='📄 '+file.name+' · toca para cambiar';
+        mostrarQuitar(previewId,true);
       };
       r.readAsDataURL(file);
       return;
@@ -2331,6 +2404,7 @@ function prevPhoto(input,previewId,boxId){
         const img=document.getElementById(previewId);
         img.src=compressed;img.style.display='block';
         document.getElementById(boxId).style.display='none';
+        if(esFactura)mostrarQuitar(previewId,true);
         checkSalidaReqs();
       };
       tmpImg.src=e.target.result;

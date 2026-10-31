@@ -634,8 +634,9 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
   <!-- MODAL DETALLE ARTÍCULO -->
   <div class="modal-overlay" id="modalItemDetail">
     <div class="modal-box">
-      <div class="modal-title" id="modalItemTitulo">Artículo <button class="modal-close" onclick="closeModal('modalItemDetail')">×</button></div>
+      <div class="modal-title"><span id="modalItemTitulo">Artículo</span> <button class="modal-close" onclick="closeModal('modalItemDetail')">×</button></div>
       <div id="modalItemBody"></div>
+      <button class="btn" onclick="closeModal('modalItemDetail')" style="margin-top:10px;background:var(--bg);color:var(--tx);border:1px solid var(--br)">Cerrar</button>
     </div>
   </div>
 
@@ -953,7 +954,7 @@ function showItemDetail(id){
     <div style="text-align:center;margin-bottom:8px;font-size:12px">${estado}</div>
     ${asig.length>0?`<div style="font-size:10px;color:var(--tx2);margin-top:4px">📤 Asignado a: ${asig.map(s=>s.trabajador||'—').join(', ')} (${asig.length} salida(s) pendiente(s))</div>`:''}
   `;
-  document.getElementById('modalItemTitulo').innerHTML=item.nombre;
+  document.getElementById('modalItemTitulo').textContent=item.nombre;
   openModal('modalItemDetail');
 }
 
@@ -2461,6 +2462,9 @@ function closeModal(id){
     history.back();
   }
 }
+document.addEventListener('click',e=>{
+  if(e.target.classList&&e.target.classList.contains('modal-overlay')&&e.target.classList.contains('open'))closeModal(e.target.id);
+});
 window.addEventListener('popstate',function(e){
   _modalOpenViaHistory=true;
   document.querySelectorAll('.modal-overlay.open, .detail-modal.open').forEach(m=>m.classList.remove('open'));

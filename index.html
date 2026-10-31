@@ -631,6 +631,49 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     </div>
   </div>
 
+  <!-- MODAL EDITAR ARTÍCULO -->
+  <div class="modal-overlay" id="modalEditItem">
+    <div class="modal-box">
+      <div class="modal-title">Editar artículo <button class="modal-close" onclick="closeModal('modalEditItem')">×</button></div>
+      <input type="hidden" id="editId"/>
+      <div class="fg"><label>Nombre <span class="req-indicator">*</span></label><input type="text" id="editNombre"/></div>
+      <div class="fg"><label>Categoría</label>
+        <select id="editCategoria">
+          <option value="Herramientas">🔧 Herramientas</option><option value="EPP">🦺 EPP</option><option value="Dotación">👕 Dotación</option>
+          <option value="Seguridad">🛡️ Seguridad</option><option value="Mecánica">⚙️ Mecánica</option><option value="Eléctrica">⚡ Eléctrica</option>
+          <option value="Manual">🪛 Manual</option><option value="Apriete">🔩 Apriete</option><option value="Medición">📏 Medición</option><option value="Otra">📦 Otra</option>
+        </select>
+      </div>
+      <div class="fg"><label>Código interno</label><input type="text" id="editCodigo"/></div>
+      <div class="fg"><label>Marca</label><input type="text" id="editMarca"/></div>
+      <div class="fg"><label>Descripción</label><textarea id="editDesc" rows="3" style="resize:none"></textarea></div>
+      <div style="display:flex;gap:6px">
+        <div class="fg" style="flex:1"><label>Proveedor</label><input type="text" id="editProv"/></div>
+        <div class="fg" style="flex:1"><label>Valor unitario</label><input type="number" id="editValor" min="0"/></div>
+      </div>
+      <div class="fg"><label>Stock mínimo</label><input type="number" id="editStockMin" min="0"/></div>
+      <div class="fg"><label>Observaciones</label><textarea id="editObs" rows="2" style="resize:none"></textarea></div>
+      <div class="fg"><label>Foto del artículo</label>
+        <div class="photo-box" id="pbEditFoto">
+          <input type="file" accept="image/*" onchange="prevPhoto(this,'prevEditFoto','pbEditFoto');mostrarQuitar('prevEditFoto',true)"/>
+          <span class="ico">📷</span><p>Tomar foto o elegir de la galería</p>
+        </div>
+        <img id="prevEditFoto" class="photo-preview"/>
+        <button type="button" id="rmprevEditFoto" onclick="quitarFotoEdit()" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar</button>
+      </div>
+      <div class="fg"><label>Factura de compra: foto o PDF</label>
+        <div id="editFactActual" style="display:none;margin-bottom:6px"></div>
+        <div class="photo-box" id="pbEditFact">
+          <input type="file" accept="image/*,application/pdf" onchange="prevPhoto(this,'prevEditFact','pbEditFact')"/>
+          <span class="ico">📎</span><p>Tomar foto, elegir de la galería o cargar PDF</p>
+        </div>
+        <img id="prevEditFact" class="photo-preview"/>
+        <button type="button" id="rmprevEditFact" onclick="limpiarArchivoFactura('prevEditFact','pbEditFact')" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar</button>
+      </div>
+      <button class="btn primary" id="btnGuardarEdit" onclick="guardarEdicionItem()">✓ Guardar cambios</button>
+    </div>
+  </div>
+
   <!-- MODAL DETALLE ARTÍCULO -->
   <div class="modal-overlay" id="modalItemDetail">
     <div class="modal-box">
@@ -945,9 +988,102 @@ function showItemDetail(id){
     </div>
     <div style="text-align:center;margin-bottom:8px;font-size:12px">${estado}</div>
     ${asig.length>0?`<div style="font-size:10px;color:var(--tx2);margin-top:4px">📤 Asignado a: ${asig.map(s=>s.trabajador||'—').join(', ')} (${asig.length} salida(s) pendiente(s))</div>`:''}
+    ${facturasDeItem(item)}
+    ${canOperate?`<button class="btn" onclick="abrirEdicionItem('${item.id}')" style="margin-top:10px">✏️ Editar artículo, foto o factura</button>`:''}
   `;
   document.getElementById('modalItemTitulo').textContent=item.nombre;
   openModal('modalItemDetail');
+}
+
+// ---- EDITAR ARTÍCULO ----
+let editQuitarFoto=false,editQuitarFactura=false;
+function facturasDeItem(item){
+  const btns=[];
+  if(item.facturaCompraId)btns.push(`<button onclick="verFactura('${item.facturaCompraId}')" class="btn" style="margin-top:6px;background:var(--bll);color:var(--bl);border-color:#B5D4F4">📄 Ver factura de compra${item.facturaCompraNombre?' ('+item.facturaCompraNombre+')':''}</button>`);
+  const ents=movimientosAll.filter(m=>m.tipo==='entrada'&&!m.anulado&&m.herrId===item.id&&(m.facturaId||m.foto)&&m.facturaId!==item.facturaCompraId);
+  const vistos=new Set();
+  ents.forEach(m=>{
+    const k=m.facturaId||m.id;if(vistos.has(k))return;vistos.add(k);
+    const fn=m.facturaId?`verFactura('${m.facturaId}')`:`verFotoMov('${m.id}')`;
+    btns.push(`<button onclick="${fn}" class="btn" style="margin-top:6px;font-size:11px">📄 Factura de entrada${m.factura?' '+m.factura:''} · ${m.fechaIngreso||(m.fecha||'').split('T')[0]}</button>`);
+  });
+  return btns.join('');
+}
+function abrirEdicionItem(id){
+  const item=inventarioAll.find(i=>i.id===id);if(!item)return;
+  closeModal('modalItemDetail');
+  editQuitarFoto=false;editQuitarFactura=false;
+  const v=(k,val)=>{document.getElementById(k).value=val==null?'':val;};
+  v('editId',item.id);v('editNombre',item.nombre);v('editCodigo',item.codigo);v('editMarca',item.marca);
+  v('editDesc',item.descripcion);v('editProv',item.proveedor);v('editValor',item.valor);v('editStockMin',item.stockMinimo);v('editObs',item.observaciones);
+  const sel=document.getElementById('editCategoria');
+  if(item.categoria&&![...sel.options].some(o=>o.value===item.categoria)){const o=document.createElement('option');o.value=o.textContent=item.categoria;sel.appendChild(o);}
+  sel.value=item.categoria||'Otra';
+  // foto actual
+  const img=document.getElementById('prevEditFoto'),box=document.getElementById('pbEditFoto');
+  box.querySelector('input').value='';
+  if(item.fotoArticulo){img.src=item.fotoArticulo;img.style.display='block';box.style.display='none';mostrarQuitar('prevEditFoto',true);}
+  else{img.style.display='none';box.style.display='block';mostrarQuitar('prevEditFoto',false);}
+  // factura de compra
+  limpiarArchivoFactura('prevEditFact','pbEditFact');
+  pintarFacturaActualEdit(item);
+  openModal('modalEditItem');
+}
+function pintarFacturaActualEdit(item){
+  const el=document.getElementById('editFactActual');
+  if(item.facturaCompraId&&!editQuitarFactura){
+    el.style.display='flex';el.style.gap='6px';
+    el.innerHTML=`<button type="button" class="btn" style="flex:1;font-size:11px;background:var(--bll);color:var(--bl);border-color:#B5D4F4" onclick="verFactura('${item.facturaCompraId}')">📄 Ver actual</button>`+
+      `<button type="button" class="btn" style="flex:1;font-size:11px;background:var(--rdl);color:var(--rd);border-color:var(--rd)" onclick="editQuitarFactura=true;pintarFacturaActualEdit(inventarioAll.find(i=>i.id==='${item.id}'))">🗑 Quitar factura</button>`;
+  } else if(item.facturaCompraId&&editQuitarFactura){
+    el.style.display='block';
+    el.innerHTML='<div style="font-size:11px;color:var(--rd)">La factura actual se quitará al guardar.</div>';
+  } else {el.style.display='none';el.innerHTML='';}
+}
+function quitarFotoEdit(){
+  editQuitarFoto=true;
+  const img=document.getElementById('prevEditFoto'),box=document.getElementById('pbEditFoto');
+  img.style.display='none';img.removeAttribute('src');box.style.display='block';box.querySelector('input').value='';
+  mostrarQuitar('prevEditFoto',false);
+}
+async function guardarEdicionItem(){
+  if(!canOperate)return;
+  const id=document.getElementById('editId').value;
+  const item=inventarioAll.find(i=>i.id===id);if(!item)return;
+  const g=k=>document.getElementById(k).value.trim();
+  const nombre=g('editNombre');
+  if(!nombre){alert('El nombre es obligatorio');return;}
+  const norm=x=>String(x||'').trim().toLowerCase();
+  if(inventario.some(i=>i.id!==id&&norm(i.nombre)===norm(nombre)&&norm(i.codigo)===norm(g('editCodigo')))){
+    if(!confirm('Ya existe otro artículo con ese nombre y código en '+ccNombre(item.cc)+'. ¿Guardar de todas formas?'))return;
+  }
+  const btn=document.getElementById('btnGuardarEdit');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const upd={nombre,codigo:g('editCodigo'),marca:g('editMarca'),categoria:document.getElementById('editCategoria').value,
+    descripcion:g('editDesc'),proveedor:g('editProv'),valor:g('editValor'),stockMinimo:parseInt(g('editStockMin'))||0,observaciones:g('editObs')};
+  // foto
+  const nuevaFoto=getPhotoB64('prevEditFoto');
+  if(nuevaFoto&&nuevaFoto!==item.fotoArticulo)upd.fotoArticulo=nuevaFoto;
+  else if(editQuitarFoto&&!nuevaFoto)upd.fotoArticulo=firebase.firestore.FieldValue.delete();
+  // factura de compra
+  const fac=await guardarArchivoFactura('prevEditFact',{factura:'',proveedor:upd.proveedor});
+  if(fac&&fac.error){
+    btn.innerHTML='✓ Guardar cambios';btn.disabled=false;
+    alert('No se pudo guardar la factura: '+fac.error);return;
+  }
+  if(fac){upd.facturaCompraId=fac.id;upd.facturaCompraNombre=fac.nombre;}
+  else if(editQuitarFactura){upd.facturaCompraId=firebase.firestore.FieldValue.delete();upd.facturaCompraNombre=firebase.firestore.FieldValue.delete();}
+  try{await db.collection('inventario').doc(id).update(upd);}
+  catch(e){btn.innerHTML='✓ Guardar cambios';btn.disabled=false;alert('No se pudieron guardar los cambios: '+e.message);return;}
+  // actualizar en memoria
+  Object.keys(upd).forEach(k=>{
+    const val=upd[k];
+    if(val&&typeof val==='object'&&!Array.isArray(val))delete item[k]; // FieldValue.delete()
+    else item[k]=val;
+  });
+  btn.innerHTML='✓ Guardar cambios';btn.disabled=false;
+  closeModal('modalEditItem');
+  renderInv(inventario);loadDashboard();
+  showItemDetail(id);
 }
 
 // ---- DASHBOARD ----
@@ -1227,7 +1363,7 @@ function checkSalidaReqs(){
 
 // ---- FACTURAS ADJUNTAS (foto o PDF) ----
 // Se guardan una sola vez en la colección "facturas"; los movimientos guardan solo la referencia (facturaId).
-const FACTURA_PREVIEWS=['prevEnt','prevLotFact','prevLotItem'];
+const FACTURA_PREVIEWS=['prevEnt','prevLotFact','prevLotItem','prevEditFact'];
 let lotModoFactura=null; // 'una' | 'varias'
 function setLotModoFactura(modo){
   lotModoFactura=modo;

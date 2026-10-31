@@ -204,7 +204,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <div id="entModoInd">
         <div class="cat-tabs" id="entCatTabs">
-          <button class="ctab active" onclick="setMovCat(this,'Herramientas','ent')">🔧 Herramientas</button>
+          <button class="ctab active" onclick="setMovCat(this,'','ent')">Todos</button>
+          <button class="ctab" onclick="setMovCat(this,'Herramientas','ent')">🔧 Herramientas</button>
           <button class="ctab" onclick="setMovCat(this,'EPP','ent')">🦺 EPP</button>
           <button class="ctab" onclick="setMovCat(this,'Dotación','ent')">👕 Dotación</button>
           <button class="ctab" onclick="setMovCat(this,'Seguridad','ent')">🛡️ Seguridad</button>
@@ -697,7 +698,7 @@ const ALMACENISTAS_TEST=['sersanmantenimiento@gmail.com']; // acceso completo te
 const ADMINS=['sersanperu1@gmail.com','sersanmantenimiento@gmail.com'];
 const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com'];
 
-let currentUser=null,isAlmacenista=false,isAdmin=false,canOperate=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
+let currentUser=null,isAlmacenista=false,isAdmin=false,canOperate=false,inventario=[],movimientos=[],currentMovCat='',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
 let solicitudesPendientes=[],anulMovActual=null;
 // ---- CENTROS DE COSTOS ----
 // Artículos y movimientos sin campo "cc" pertenecen a URIBIA (datos anteriores a esta función).
@@ -781,6 +782,8 @@ function setMovTab(btn,id){
   document.querySelectorAll('#scMovimientos .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   ['tEnt','tSal','tDev','tBaja','tTras'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
+  currentMovCat='';
+  ['entCatTabs','salCatTabs'].forEach(t=>{const tabs=document.querySelectorAll('#'+t+' .ctab');tabs.forEach((b,k)=>b.classList.toggle('active',k===0));});
 }
 function setMovCat(btn,cat,prefix){
   currentMovCat=cat;
@@ -1368,7 +1371,7 @@ function agregarItemLote(){
   const existIdx=entLoteItems.findIndex(i=>i.herrId===id);
   if(existIdx>=0){entLoteItems[existIdx].cantidad+=cant;}
   else{
-    const inv=inventario.find(i=>i.id===id);
+    const inv=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
     entLoteItems.push({herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:''});
   }
   document.getElementById('lotBuscar').value='';
@@ -1405,6 +1408,7 @@ async function registrarEntradaLote(){
   const fotoFactura=getPhotoB64('prevLotFact');
   let saved=0;
   for(const it of entLoteItems){
+    it.herrId=await crearDesdeCatalogo(it.herrId);
     const data={
       tipo:'entrada',herrId:it.herrId,herrNombre:it.herrNombre,nombre:it.herrNombre,
       categoria:it.categoria,cantidad:it.cantidad,
@@ -1449,7 +1453,9 @@ async function registrarEntrada(){
   const codigo=document.getElementById('entCodigo').value;
   const marca=document.getElementById('entMarca').value;
   const descripcion=document.getElementById('entDesc').value;
-  let finalHerrId=herrId;
+  let finalHerrId=await crearDesdeCatalogo(herrId);
+  const srcCat=inventario.find(i=>i.id===finalHerrId);
+  const catEntrada=(srcCat&&srcCat.categoria)||currentMovCat||'Otra';
   // Si el artículo no existe en inventario (no fue seleccionado de la lista ni creado por el modal),
   // se crea automáticamente para no perder el registro.
   if(!finalHerrId){
@@ -1457,7 +1463,7 @@ async function registrarEntrada(){
     if(existente){
       finalHerrId=existente.id;
     } else {
-      const newItem={nombre:herrNombre,categoria:currentMovCat,codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo};
+      const newItem={nombre:herrNombre,categoria:currentMovCat||'Otra',codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo};
       try{
         const ref=await db.collection('inventario').add(newItem);
         newItem.id=ref.id;
@@ -1468,7 +1474,7 @@ async function registrarEntrada(){
     }
   }
   const data={
-    tipo:'entrada',herrId:finalHerrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,
+    tipo:'entrada',herrId:finalHerrId,herrNombre,nombre:herrNombre,categoria:catEntrada,cantidad:cant,
     codigo,marca,descripcion,
     proveedor:document.getElementById('entProv').value,
     factura:document.getElementById('entFact').value,
@@ -1517,7 +1523,7 @@ async function registrarSalida(){
   const btn=document.getElementById('btnSalida');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const data={
-    tipo:'salida',herrId,herrNombre,nombre:herrNombre,categoria:currentMovCat,cantidad:cant,cantPendiente:cant,cantOriginal:cant,
+    tipo:'salida',herrId,herrNombre,nombre:herrNombre,categoria:(itemSal&&itemSal.categoria)||currentMovCat,cantidad:cant,cantPendiente:cant,cantOriginal:cant,
     trabajador:trab,cedula:ced,
     obra:document.getElementById('salObra').value,
     fechaSalida:fecha,
@@ -2039,6 +2045,24 @@ function ccIdDesdeTexto(txt){
   const porNombre=centrosCostos.find(c=>c.id===code||c.nombre.toLowerCase()===t.toLowerCase());
   return porNombre?porNombre.id:code;
 }
+// Crea en el centro de costos activo una copia (cantidad 0) de un artículo de otro centro de costos.
+// Recibe 'cat:<id>' y devuelve el id del artículo en el centro de costos activo.
+async function crearDesdeCatalogo(herrId){
+  if(!String(herrId||'').startsWith('cat:'))return herrId;
+  const src=inventarioAll.find(i=>i.id===herrId.slice(4));
+  if(!src)return '';
+  const norm=v=>String(v||'').trim().toLowerCase();
+  const ya=inventario.find(i=>norm(i.nombre)===norm(src.nombre)&&norm(i.codigo)===norm(src.codigo));
+  if(ya)return ya.id;
+  const newItem={nombre:src.nombre||'',codigo:src.codigo||'',categoria:src.categoria||'Herramientas',marca:src.marca||'',
+    descripcion:src.descripcion||'',stockMinimo:src.stockMinimo||0,proveedor:src.proveedor||'',valor:src.valor||'',
+    cc:ccActivo,cantidad:0,disponible:0};
+  if(src.fotoArticulo)newItem.fotoArticulo=src.fotoArticulo;
+  try{const ref=await db.collection('inventario').add(newItem);newItem.id=ref.id;}
+  catch(e){newItem.id='local_'+Date.now();}
+  addInvLocal(newItem);
+  return newItem.id;
+}
 function movVisibleEnCC(m){return (m.cc||CC_DEFAULT)===ccActivo||(m.tipo==='traslado'&&m.ccDestino===ccActivo);}
 function addMovLocal(m){movimientosAll.unshift(m);if(movVisibleEnCC(m))movimientos.unshift(m);}
 function addInvLocal(it){if(!it.cc)it.cc=ccActivo;inventarioAll.push(it);if(it.cc===ccActivo)inventario.push(it);}
@@ -2295,10 +2319,11 @@ function acSearch(input,listId,hiddenId){
   const list=document.getElementById(listId);
   if(!q){list.classList.remove('open');return;}
   const isTras=listId==='trasAcList';
+  const isEnt=listId==='entAcList'||listId==='lotAcList';
   const isSalida=listId==='salAcList'||isTras;
   const matches=inventario.filter(i=>{
     const nameMatch=(i.nombre||'').toLowerCase().includes(q)||(i.codigo||'').toLowerCase().includes(q);
-    const catMatch=isTras||!currentMovCat||i.categoria===currentMovCat;
+    const catMatch=isTras||isEnt||!currentMovCat||i.categoria===currentMovCat;
     const stockOk=!isSalida||(i.disponible||0)>0;
     return nameMatch&&catMatch&&stockOk;
   }).slice(0,12);
@@ -2320,6 +2345,37 @@ function acSearch(input,listId,hiddenId){
     });
     list.appendChild(div);
   });
+  // Entradas: sugerir artículos ya creados en otros centros de costos (catálogo)
+  if(listId==='entAcList'||listId==='lotAcList'){
+    const norm=v=>String(v||'').trim().toLowerCase();
+    const yaAqui=new Set(inventario.map(i=>norm(i.nombre)+'|'+norm(i.codigo)));
+    const vistos=new Set();
+    const catalogo=inventarioAll.filter(i=>{
+      if((i.cc||CC_DEFAULT)===ccActivo)return false;
+      const k=norm(i.nombre)+'|'+norm(i.codigo);
+      if(yaAqui.has(k)||vistos.has(k))return false;
+      const nameMatch=norm(i.nombre).includes(q)||norm(i.codigo).includes(q);
+      if(nameMatch){vistos.add(k);return true;}
+      return false;
+    }).slice(0,12);
+    if(catalogo.length){
+      const h=document.createElement('div');
+      h.className='ac-item';
+      h.style.cssText='font-size:9px;font-weight:700;color:var(--tx3);background:var(--bg);cursor:default';
+      h.textContent='Creados en otro centro de costos · se agregan a '+ccNombre(ccActivo);
+      list.appendChild(h);
+      catalogo.forEach(i=>{
+        const div=document.createElement('div');
+        div.className='ac-item';
+        div.setAttribute('ontouchstart','');
+        div.innerHTML=catIcon(i.categoria)+' '+i.nombre+' <span style="color:var(--bl);font-size:9px">(de '+ccNombre(i.cc)+')</span>';
+        div.addEventListener('click',function(){
+          selectAcItem('cat:'+i.id,i.nombre,input.id,listId,hiddenId);
+        });
+        list.appendChild(div);
+      });
+    }
+  }
   if(canOperate&&!isSalida){
     const addDiv=document.createElement('div');
     addDiv.className='ac-item add-new';
@@ -2350,7 +2406,7 @@ function selectAcItem(id,nombre,inputId,listId,hiddenId){
   document.getElementById(hiddenId).value=id;
   document.getElementById(listId).classList.remove('open');
   if(inputId==='entBuscar'){
-    const item=inventario.find(i=>i.id===id);
+    const item=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
     if(item){
       document.getElementById('entCodigo').value=item.codigo||'';
       document.getElementById('entMarca').value=item.marca||'';

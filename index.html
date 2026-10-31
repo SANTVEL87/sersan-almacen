@@ -968,7 +968,7 @@ function renderInv(items){
 function filterInvCat(btn,cat){currentInvCat=cat;document.getElementById('scInventario').querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInv(inventario);}
 function filterInv(q){renderInv(inventario);}
 
-function showItemDetail(id){
+function showItemDetail(id,desdeModal){
   const item=inventario.find(i=>i.id===id);if(!item)return;
   const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id&&(m.cantPendiente||0)>0);
   const estado=item.disponible===0?'<span style="color:var(--rd);font-weight:700">AGOTADO</span>':item.disponible<=2?'<span style="color:var(--yl2);font-weight:700">STOCK BAJO</span>':'<span style="color:var(--gr);font-weight:700">DISPONIBLE</span>';
@@ -992,7 +992,8 @@ function showItemDetail(id){
     ${canOperate?`<button class="btn" onclick="abrirEdicionItem('${item.id}')" style="margin-top:10px">✏️ Editar artículo, foto o factura</button>`:''}
   `;
   document.getElementById('modalItemTitulo').textContent=item.nombre;
-  openModal('modalItemDetail');
+  if(desdeModal)cambiarModal(desdeModal,'modalItemDetail');
+  else openModal('modalItemDetail');
 }
 
 // ---- EDITAR ARTÍCULO ----
@@ -1011,7 +1012,6 @@ function facturasDeItem(item){
 }
 function abrirEdicionItem(id){
   const item=inventarioAll.find(i=>i.id===id);if(!item)return;
-  closeModal('modalItemDetail');
   editQuitarFoto=false;editQuitarFactura=false;
   const v=(k,val)=>{document.getElementById(k).value=val==null?'':val;};
   v('editId',item.id);v('editNombre',item.nombre);v('editCodigo',item.codigo);v('editMarca',item.marca);
@@ -1027,7 +1027,7 @@ function abrirEdicionItem(id){
   // factura de compra
   limpiarArchivoFactura('prevEditFact','pbEditFact');
   pintarFacturaActualEdit(item);
-  openModal('modalEditItem');
+  cambiarModal('modalItemDetail','modalEditItem');
 }
 function pintarFacturaActualEdit(item){
   const el=document.getElementById('editFactActual');
@@ -1081,9 +1081,8 @@ async function guardarEdicionItem(){
     else item[k]=val;
   });
   btn.innerHTML='✓ Guardar cambios';btn.disabled=false;
-  closeModal('modalEditItem');
   renderInv(inventario);loadDashboard();
-  showItemDetail(id);
+  showItemDetail(id,'modalEditItem');
 }
 
 // ---- DASHBOARD ----
@@ -2579,6 +2578,13 @@ function verImagenBtn(btn){
 // un modal abierto: en su lugar, cierra el modal. Esto soluciona el problema
 // de quedar atascado y tener que cerrar la app para continuar.
 let _modalOpenViaHistory=false;
+// Cambia de una ventana a otra sin pasar por history.back() (que cerraría la nueva al llegar el popstate)
+function cambiarModal(fromId,toId){
+  const a=document.getElementById(fromId);if(a)a.classList.remove('open');
+  document.getElementById(toId).classList.add('open');
+  if(history.state&&history.state.modalOpen)history.replaceState({modalOpen:toId},'');
+  else history.pushState({modalOpen:toId},'');
+}
 function openModal(id){
   document.getElementById(id).classList.add('open');
   history.pushState({modalOpen:id},'');

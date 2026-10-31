@@ -17,6 +17,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .tb-back{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:0;display:none;line-height:1;margin-right:2px}
 .tb-title{flex:1;font-size:14px;font-weight:700}
 .tb-user{font-size:10px;color:#aaa}
+#ccBar{background:var(--yl);color:var(--bk);padding:6px 14px;display:flex;align-items:center;gap:6px;font-size:11px;flex-shrink:0;cursor:pointer;border:none;width:100%;text-align:left}
+#ccBar b{font-weight:800}
+#ccBar .cc-cambiar{margin-left:auto;font-size:10px;font-weight:700;opacity:.75}
+.cc-opt{display:flex;align-items:center;gap:8px;width:100%;padding:11px 12px;border:1px solid var(--br);border-radius:8px;background:var(--wh);font-size:13px;font-weight:700;color:var(--tx);cursor:pointer;margin-bottom:7px;text-align:left}
+.cc-opt.active{border-color:var(--bk);background:var(--bk);color:var(--yl)}
+.cc-opt small{margin-left:auto;font-size:10px;font-weight:600;opacity:.75}
 .tb-badge{background:rgba(245,200,0,0.2);color:var(--yl);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;margin-top:1px;display:none}
 .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;display:none}
 .screen.active{display:block}
@@ -160,6 +166,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     </div>
   </div>
 
+  <button id="ccBar" onclick="abrirSelectorCC()">📍 Centro de costos: <b id="ccBarNombre">Uribia</b><span class="cc-cambiar">Cambiar ▾</span></button>
+
   <!-- INICIO -->
   <div class="screen active" id="scInicio">
     <div class="stat-grid">
@@ -184,6 +192,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <button class="tab" onclick="setMovTab(this,'tSal')">📤 Salida</button>
         <button class="tab" onclick="setMovTab(this,'tDev')">↩️ Devolución</button>
         <button class="tab" onclick="setMovTab(this,'tBaja')">🚫 Baja</button>
+        <button class="tab" onclick="setMovTab(this,'tTras')">🔁 Traslado</button>
       </div>
 
       <!-- ENTRADA -->
@@ -434,6 +443,24 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <div class="fg"><label>Observaciones</label><textarea id="bajaObs" rows="2" style="resize:none" placeholder="Detalles adicionales..."></textarea></div>
         <button class="btn" style="background:var(--rd);color:#fff;border-color:var(--rd)" onclick="registrarBaja()">🚫 Confirmar baja de inventario</button>
       </div>
+      <!-- TRASLADO ENTRE CENTROS DE COSTOS -->
+      <div id="tTras" style="display:none">
+        <div class="readonly-banner" style="background:var(--bll);border-color:var(--bl);color:var(--bl);margin-bottom:10px">Mueve unidades disponibles de <b id="trasOrigenLbl">Uribia</b> a otro centro de costos. Las unidades asignadas a trabajadores no se pueden trasladar hasta que se devuelvan.</div>
+        <div class="fg"><label>Artículo <span class="req-indicator">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="trasBuscar" placeholder="Escribir para buscar..." oninput="acSearch(this,'trasAcList','trasHiddenId')" autocomplete="off"/>
+            <div class="autocomplete-list" id="trasAcList"></div>
+          </div>
+          <input type="hidden" id="trasHiddenId"/>
+        </div>
+        <div class="fg"><label>Cantidad a trasladar <span class="req-indicator">*</span></label><input type="number" id="trasCant" value="1" min="1"/></div>
+        <div class="fg"><label>Centro de costos destino <span class="req-indicator">*</span></label><select id="trasDestino"></select></div>
+        <div class="fg"><label>Fecha de traslado <span class="req-indicator">*</span></label><input type="date" id="trasFecha"/></div>
+        <div class="fg"><label>Responsable del transporte / quien recibe</label><input type="text" id="trasResp" placeholder="Nombre (opcional)"/></div>
+        <div class="fg"><label>Observaciones</label><textarea id="trasObs" rows="2" style="resize:none" placeholder="Guía, vehículo, estado del artículo..."></textarea></div>
+        <button class="btn primary" id="btnTraslado" onclick="registrarTraslado()">🔁 Registrar traslado</button>
+      </div>
+
     </div>
   </div>
 
@@ -493,7 +520,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     </div>
     <div style="background:var(--bll);border-radius:7px;padding:8px 10px;margin-bottom:14px;font-size:10px;color:var(--bl)">
       ℹ️ Columnas esperadas: ID · Código · Descripción · Marca · Categoría · Cantidad Total · Disponible · Stock Mínimo · Proveedor · Valor Unitario · Observaciones<br>
-      Puede importar el mismo archivo que exporta la app. La importación reemplaza todo el inventario actual.
+      Puede importar el mismo archivo que exporta la app (incluye la columna Centro de Costos). Solo se reemplaza el inventario de los centros de costos que vengan en el archivo; si el archivo no trae esa columna, se importa al centro de costos activo.
     </div>
 
     <div class="sec-title" style="margin-top:4px">Paz y Salvo de Almacén</div>
@@ -515,6 +542,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <button class="ctab" onclick="filterHistCat(this,'salida')">📤 Salidas</button>
       <button class="ctab" onclick="filterHistCat(this,'devolucion')">↩️ Dev.</button>
       <button class="ctab" onclick="filterHistCat(this,'baja')">🚫 Bajas</button>
+      <button class="ctab" onclick="filterHistCat(this,'traslado')">🔁 Traslados</button>
     </div>
     <div id="histList"><div class="no-results">Cargando...</div></div>
   </div>
@@ -563,6 +591,19 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <div class="fg"><label>Marca</label><input type="text" id="nuevaMarca" placeholder="Opcional"/></div>
       <div class="fg"><label>Descripción</label><input type="text" id="nuevaDesc" placeholder="Características técnicas"/></div>
       <button class="btn primary" onclick="guardarNuevoItem()">✓ Guardar artículo</button>
+    </div>
+  </div>
+
+  <!-- MODAL CENTROS DE COSTOS -->
+  <div class="modal-overlay" id="modalCC">
+    <div class="modal-box">
+      <div class="modal-title">Centro de costos <button class="modal-close" onclick="closeModal('modalCC')">×</button></div>
+      <div style="font-size:11px;color:var(--tx2);margin-bottom:10px">Inventario, movimientos y asignados se muestran solo del centro de costos que elijas.</div>
+      <div id="ccLista"></div>
+      <div id="ccNuevoWrap" style="display:none;border-top:1px solid var(--br);margin-top:12px;padding-top:12px">
+        <div class="fg"><label>Crear centro de costos</label><input type="text" id="ccNuevoNombre" placeholder="Ej: Nemocón"/></div>
+        <button class="btn primary" onclick="crearCentroCostos()">➕ Crear centro de costos</button>
+      </div>
     </div>
   </div>
 
@@ -630,8 +671,9 @@ db.enablePersistence().catch(()=>{});
           +'<div style="font-size:12px;margin-bottom:6px"><strong>Trabajador:</strong> '+d.nombre+'</div>'
           +'<div style="font-size:12px;margin-bottom:6px"><strong>Cédula:</strong> '+d.cedula+'</div>'
           +'<div style="font-size:12px;margin-bottom:6px"><strong>Fecha:</strong> '+fecha+'</div>'
+          +(d.almacen?'<div style="font-size:12px;margin-bottom:6px"><strong>Almacén:</strong> '+d.almacen+'</div>':'')
           +'<div style="font-size:12px"><strong>Código:</strong> <span style="font-family:monospace">'+pazCodigo+'</span></div></div>'
-          +'<div style="font-size:11px;color:#555;text-align:center;margin-bottom:16px">El señor(a) <strong>'+d.nombre+'</strong> no tiene artículos pendientes por devolver al Almacén de SERSAN INGENIERÍA S.A.S.</div>'
+          +'<div style="font-size:11px;color:#555;text-align:center;margin-bottom:16px">El señor(a) <strong>'+d.nombre+'</strong> no tiene artículos pendientes por devolver al Almacén '+(d.almacen?d.almacen+' ':'')+'de SERSAN INGENIERÍA S.A.S.</div>'
           +'<div style="text-align:center;font-size:10px;color:#888;border-top:1px solid #eee;padding-top:12px">Emitido por: Diego Lombana — Almacenista<br>SERSAN INGENIERÍA S.A.S.</div>'
           +'</div>';
       } else {
@@ -657,6 +699,12 @@ const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersan
 
 let currentUser=null,isAlmacenista=false,isAdmin=false,canOperate=false,inventario=[],movimientos=[],currentMovCat='Herramientas',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
 let solicitudesPendientes=[],anulMovActual=null;
+// ---- CENTROS DE COSTOS ----
+// Artículos y movimientos sin campo "cc" pertenecen a URIBIA (datos anteriores a esta función).
+const CC_DEFAULT='URIBIA';
+let centrosCostos=[{id:'URIBIA',nombre:'Uribia'}];
+let ccActivo=localStorage.getItem('sersanCC')||CC_DEFAULT;
+let inventarioAll=[],movimientosAll=[];
 let offlineQueue=JSON.parse(localStorage.getItem('sersanQ')||'[]');
 
 window.addEventListener('online',()=>{document.getElementById('offlineBanner').style.display='none';syncQueue();});
@@ -709,7 +757,9 @@ async function initApp(){
   document.getElementById('bajaFecha').value=hoy;
   document.getElementById('lisFecha').value=hoy;
   document.getElementById('lotFecha').value=hoy;
+  document.getElementById('trasFecha').value=hoy;
   setupSalidaValidation();
+  await loadCentrosCostos();
   await loadInventario();
   await loadMovimientos();
   if(isAdmin)await loadSolicitudes();
@@ -730,7 +780,7 @@ function goBack(){navTo('scInicio','Inicio');}
 function setMovTab(btn,id){
   document.querySelectorAll('#scMovimientos .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['tEnt','tSal','tDev','tBaja'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
+  ['tEnt','tSal','tDev','tBaja','tTras'].forEach(i=>{document.getElementById(i).style.display=(i===id)?'block':'none';});
 }
 function setMovCat(btn,cat,prefix){
   currentMovCat=cat;
@@ -755,10 +805,11 @@ function setAsigTab(btn,id){
 // ---- OFFLINE ----
 async function guardarMov(data){
   data.creadoPor=currentUser.email;data.fecha=new Date().toISOString();
+  if(!data.cc)data.cc=ccActivo;
   if(navigator.onLine){
     try{
       const ref=await db.collection('movimientos').add(data);
-      data.id=ref.id;movimientos.unshift(data);return 'ok';
+      data.id=ref.id;addMovLocal(data);return 'ok';
     }catch(e){
       console.log('Firestore error:',e.message);
       if(e.message&&e.message.includes('too large')){
@@ -769,7 +820,7 @@ async function guardarMov(data){
           dataLight.id=ref.id;
           // Keep foto locally
           dataLight.foto=data.foto;
-          movimientos.unshift(dataLight);
+          addMovLocal(dataLight);
           return 'ok';
         }catch(e2){console.log('Retry failed:',e2);}
       }
@@ -777,7 +828,7 @@ async function guardarMov(data){
   }
   data._lid=Date.now().toString();data.id=data._lid;
   offlineQueue.push(data);localStorage.setItem('sersanQ',JSON.stringify(offlineQueue));
-  movimientos.unshift(data);return 'offline';
+  addMovLocal(data);return 'offline';
 }
 async function syncQueue(){
   if(!offlineQueue.length||!navigator.onLine)return;
@@ -798,11 +849,12 @@ async function loadInventario(){
         // Keep Firestore disponible (reflects real movements)
         map[i.id].disponible=i.disponible;
         map[i.id].cantidad=i.cantidad;
+        if(i.cc)map[i.id].cc=i.cc;
       } else {
         map[i.id]=i;
       }
     });
-    inventario=Object.values(map);
+    inventarioAll=Object.values(map);
     // If Firestore has fewer items than local, sync missing ones
     if(canOperate&&firestoreItems.length<INVENTARIO_INICIAL.length){
       const existingIds=new Set(firestoreItems.map(i=>i.id));
@@ -816,8 +868,12 @@ async function loadInventario(){
         await batch.commit();
       }
     }
-  }catch(e){inventario=[...INVENTARIO_INICIAL];}
-  renderInv(inventario);loadDashboard();
+  }catch(e){inventarioAll=INVENTARIO_INICIAL.map(i=>({...i}));}
+  inventarioAll.forEach(i=>{if(!i.cc)i.cc=CC_DEFAULT;});
+  // Si hay artículos con un centro de costos que no está en la lista, se agrega
+  inventarioAll.forEach(i=>{if(!centrosCostos.find(c=>c.id===i.cc))centrosCostos.push({id:i.cc,nombre:i.cc});});
+  if(!centrosCostos.find(c=>c.id===ccActivo))ccActivo=CC_DEFAULT;
+  aplicarCC();
 }
 
 function catIcon(c){
@@ -858,6 +914,7 @@ function showItemDetail(id){
   body.innerHTML=`
     ${item.fotoArticulo?`<img src="${item.fotoArticulo}" style="width:100%;max-height:160px;object-fit:cover;border-radius:9px;margin-bottom:12px">`:'<div style="width:100%;height:80px;background:var(--bg);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:12px">'+catIcon(item.categoria)+'</div>'}
     <div class="card" style="margin-bottom:8px">
+      <div class="detail-row"><span class="detail-key">Centro de costos</span><span class="detail-val">${ccNombre(item.cc)}</span></div>
       <div class="detail-row"><span class="detail-key">Código</span><span class="detail-val">${item.codigo||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Marca</span><span class="detail-val">${item.marca||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Categoría</span><span class="detail-val">${item.categoria||'—'}</span></div>
@@ -893,8 +950,9 @@ async function loadPendientes(){
 async function loadMovimientos(){
   try{
     const snap=await db.collection('movimientos').orderBy('fecha','desc').limit(100).get();
-    movimientos=snap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){movimientos=[];}
+    movimientosAll=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){movimientosAll=[];}
+  movimientos=movimientosAll.filter(movVisibleEnCC);
   // Cargar paz y salvo para export
   try{
     const snapPaz=await db.collection('pazysalvos').orderBy('fecha','desc').get();
@@ -909,17 +967,18 @@ function renderHistorial(movs){
   if(currentHistCat==='anulado'){f=movs.filter(m=>m.anulado);}
   else if(currentHistCat){f=movs.filter(m=>m.tipo===currentHistCat&&!m.anulado);}
   else{f=movs;}
-  const t={entrada:{cls:'e',ico:'📥',pre:'+'},salida:{cls:'s',ico:'📤',pre:'-'},devolucion:{cls:'d',ico:'↩️',pre:'+'},baja:{cls:'s',ico:'🚫',pre:'-'}};
+  const t={entrada:{cls:'e',ico:'📥',pre:'+'},salida:{cls:'s',ico:'📤',pre:'-'},devolucion:{cls:'d',ico:'↩️',pre:'+'},baja:{cls:'s',ico:'🚫',pre:'-'},trasladoSale:{cls:'s',ico:'🔁',pre:'-'},trasladoEntra:{cls:'e',ico:'🔁',pre:'+'}};
   const pendMovIds=new Set(solicitudesPendientes.filter(s=>s.estado==='pendiente').map(s=>s.movId));
   document.getElementById('histList').innerHTML=f.length?f.map(m=>{
-    const x=t[m.tipo]||t.salida;
-    const fecha=m.fechaSalida||m.fechaIngreso||m.fechaBaja||m.fecha;
+    const esTrasEntra=m.tipo==='traslado'&&m.ccDestino===ccActivo;
+    const x=m.tipo==='traslado'?(esTrasEntra?t.trasladoEntra:t.trasladoSale):(t[m.tipo]||t.salida);
+    const fecha=m.fechaSalida||m.fechaIngreso||m.fechaBaja||m.fechaTraslado||m.fecha;
     const fechaStr=fecha?new Date(fecha).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}):'';
-    const meta=m.tipo==='salida'?`${m.trabajador||''} · CC ${m.cedula||''} · ${m.obra||''}`:m.tipo==='devolucion'?`${m.trabajador||''} devolvió`:m.tipo==='baja'?`Baja · ${m.motivo||''}`:(m.proveedor||'Entrada');
+    const meta=m.tipo==='salida'?`${m.trabajador||''} · CC ${m.cedula||''} · ${m.obra||''}`:m.tipo==='devolucion'?`${m.trabajador||''} devolvió`:m.tipo==='baja'?`Baja · ${m.motivo||''}`:m.tipo==='traslado'?(esTrasEntra?`Traslado recibido de ${ccNombre(m.cc)}`:`Traslado enviado a ${ccNombre(m.ccDestino)}`)+(m.responsable?` · ${m.responsable}`:''):(m.proveedor||'Entrada');
     const anulBadge=m.anulado?'<span style="font-size:8px;background:var(--rd);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px">ANULADO</span>':'';
     const anulMeta=m.anulado?`<div class="mov-meta" style="color:var(--rd);font-size:8px">Anulado: ${m.motivoAnulacion||''}</div>`:'';
     let anulBtn='';
-    if(canOperate&&!isAdmin&&!m.anulado&&m.tipo!=='baja'){
+    if(canOperate&&!isAdmin&&!m.anulado&&m.tipo!=='baja'&&m.tipo!=='traslado'){
       if(pendMovIds.has(m.id)){
         anulBtn='<div style="font-size:8px;color:var(--yl2);margin-top:3px;font-weight:700">⏳ Solicitud enviada</div>';
       } else {
@@ -1060,7 +1119,8 @@ function buscarDevPorCedula(){
   if(!salidas.length){
     trabInfo.style.display='none';
     itemsList.style.display='none';
-    alert('No se encontraron artículos pendientes para la cédula: '+cedula);
+    const otros=pendientesOtrosCC(cedula);
+    alert('No se encontraron artículos pendientes para la cédula '+cedula+' en '+ccNombre(ccActivo)+'.'+(otros.length?'\n\nTiene pendientes en: '+otros.join(', ')+'. Cambia de centro de costos para registrar la devolución.':''));
     return;
   }
   devTrabActual={cedula,nombre:salidas[0].trabajador||'—',email:salidas[0].email||''};
@@ -1270,6 +1330,7 @@ async function registrarBaja(){
     if(newCant<=0){
       await db.collection('inventario').doc(herrId).delete();
       inventario=inventario.filter(i=>i.id!==herrId);
+      inventarioAll=inventarioAll.filter(i=>i.id!==herrId);
     } else {
       await db.collection('inventario').doc(herrId).update({cantidad:newCant,disponible:newDisp});
     }
@@ -1396,13 +1457,13 @@ async function registrarEntrada(){
     if(existente){
       finalHerrId=existente.id;
     } else {
-      const newItem={nombre:herrNombre,categoria:currentMovCat,codigo,marca,descripcion,cantidad:0,disponible:0};
+      const newItem={nombre:herrNombre,categoria:currentMovCat,codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo};
       try{
         const ref=await db.collection('inventario').add(newItem);
         newItem.id=ref.id;
       }catch(e){newItem.id='local_'+Date.now();}
       if(fotoArticulo){newItem.fotoArticulo=fotoArticulo;}
-      inventario.push(newItem);
+      addInvLocal(newItem);
       finalHerrId=newItem.id;
     }
   }
@@ -1569,11 +1630,12 @@ async function importarExcel(input){
         };
         if(!item.nombre)continue;
         const id='imp_'+i;
-        item.id=id;
+        item.id=(ccActivo===CC_DEFAULT?'':ccActivo+'_')+id;
+        item.cc=ccActivo;
         const existing=inventario.find(x=>x.nombre===item.nombre);
         if(!existing){
-          inventario.push(item);
-          const ref=db.collection('inventario').doc(id);
+          addInvLocal(item);
+          const ref=db.collection('inventario').doc(item.id);
           batch.set(ref,item);
           imported++;
         }
@@ -1587,6 +1649,8 @@ async function importarExcel(input){
 }
 
 function exportarExcel(){
+  // El Excel es la copia de respaldo completa: incluye todos los centros de costos
+  const inventario=inventarioAll,movimientos=movimientosAll;
   const wb=XLSX.utils.book_new();
   const fecha=new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
 
@@ -1597,7 +1661,7 @@ function exportarExcel(){
     if(m.herrId) asignadosPorId[m.herrId]=(asignadosPorId[m.herrId]||0)+(m.cantPendiente||0);
   });
 
-  const invHeaders=['ID','Código','Descripción','Marca','Categoría','Cantidad Total','Disponible','Asignado','Stock Mínimo','Proveedor','Valor Unitario','Fecha Último Ingreso','Observaciones'];
+  const invHeaders=['ID','Código','Descripción','Marca','Categoría','Cantidad Total','Disponible','Asignado','Stock Mínimo','Proveedor','Valor Unitario','Fecha Último Ingreso','Observaciones','Centro de Costos'];
   const invData=[invHeaders];
   inventario.forEach(item=>{
     const asignado=asignadosPorId[item.id]||0;
@@ -1618,16 +1682,17 @@ function exportarExcel(){
       item.proveedor||'',
       item.valor||'',
       fechaIngreso,
-      item.observaciones||''
+      item.observaciones||'',
+      item.cc||CC_DEFAULT
     ]);
   });
   const wsInv=XLSX.utils.aoa_to_sheet(invData);
   // Anchos de columna
-  wsInv['!cols']=[{wch:18},{wch:12},{wch:38},{wch:16},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:20},{wch:14},{wch:18},{wch:28}];
+  wsInv['!cols']=[{wch:18},{wch:12},{wch:38},{wch:16},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:20},{wch:14},{wch:18},{wch:28},{wch:16}];
   XLSX.utils.book_append_sheet(wb,wsInv,'INVENTARIO');
 
   // ── HOJA 2: ENTRADAS ────────────────────────────────────────────────────────
-  const entHeaders=['N°','Fecha Ingreso','Descripción','Código','Marca','Categoría','Cantidad','Proveedor','N° Factura','Valor Unitario','Registrado por','Observaciones'];
+  const entHeaders=['N°','Fecha Ingreso','Descripción','Código','Marca','Categoría','Cantidad','Proveedor','N° Factura','Valor Unitario','Registrado por','Observaciones','Centro de Costos'];
   const entData=[entHeaders];
   movimientos.filter(m=>m.tipo==='entrada').forEach((m,i)=>{
     entData.push([
@@ -1642,7 +1707,8 @@ function exportarExcel(){
       m.factura||'',
       m.valor||'',
       m.creadoPor||'',
-      m.observaciones||''
+      m.observaciones||'',
+      m.cc||CC_DEFAULT
     ]);
   });
   const wsEnt=XLSX.utils.aoa_to_sheet(entData);
@@ -1654,7 +1720,7 @@ function exportarExcel(){
     'N°','Artículo','Código','Trabajador','Cédula',
     'Cant. Salida','Fecha Salida',
     'Cant. Devuelta','Fecha Devolución','Cant. Pendiente','Estado',
-    'Foto Salida','Firma Salida','Foto Devolución','Firma Devolución','Registrado por'
+    'Foto Salida','Firma Salida','Foto Devolución','Firma Devolución','Registrado por','Centro de Costos'
   ];
   const salData=[salHeaders];
   movimientos.filter(m=>m.tipo==='salida').forEach((m,i)=>{
@@ -1682,7 +1748,8 @@ function exportarExcel(){
       m.firma?'Sí':'No',
       ultimaDev&&ultimaDev.foto?'Sí':'No',
       ultimaDev&&ultimaDev.firma?'Sí':'No',
-      m.creadoPor||''
+      m.creadoPor||'',
+      m.cc||CC_DEFAULT
     ]);
   });
   const wsSal=XLSX.utils.aoa_to_sheet(salData);
@@ -1690,7 +1757,7 @@ function exportarExcel(){
   XLSX.utils.book_append_sheet(wb,wsSal,'SALIDAS Y DEVOLUCIONES');
 
   // ── HOJA 4: ASIGNADOS ACTUALES ──────────────────────────────────────────────
-  const asigHeaders=['Artículo','Código','Trabajador','Cédula','Cant. Pendiente','Fecha Salida','Días Asignado'];
+  const asigHeaders=['Artículo','Código','Trabajador','Cédula','Cant. Pendiente','Fecha Salida','Días Asignado','Centro de Costos'];
   const asigData=[asigHeaders];
   const hoy=new Date();
   movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).forEach(m=>{
@@ -1703,7 +1770,8 @@ function exportarExcel(){
       m.cedula||'',
       m.cantPendiente||0,
       m.fechaSalida||m.fecha?.split('T')[0]||'',
-      dias
+      dias,
+      m.cc||CC_DEFAULT
     ]);
   });
   const wsAsig=XLSX.utils.aoa_to_sheet(asigData);
@@ -1733,13 +1801,22 @@ function exportarExcel(){
   wsPaz['!cols']=[{wch:14},{wch:28},{wch:30},{wch:16},{wch:12},{wch:36}];
   XLSX.utils.book_append_sheet(wb,wsPaz,'PAZ Y SALVO');
 
+  // ── HOJA 6: TRASLADOS ───────────────────────────────────────────────────────
+  const trasData=[['Fecha','Artículo','Código','Cantidad','Origen','Destino','Responsable','Registrado por','Observaciones']];
+  movimientos.filter(m=>m.tipo==='traslado').forEach(m=>{
+    trasData.push([m.fechaTraslado||m.fecha?.split('T')[0]||'',m.herrNombre||'',m.codigo||'',m.cantidad||0,ccNombre(m.cc),ccNombre(m.ccDestino),m.responsable||'',m.creadoPor||'',m.observaciones||'']);
+  });
+  const wsTras=XLSX.utils.aoa_to_sheet(trasData);
+  wsTras['!cols']=[{wch:12},{wch:36},{wch:12},{wch:10},{wch:14},{wch:14},{wch:22},{wch:26},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,wsTras,'TRASLADOS');
+
   XLSX.writeFile(wb,`SERSAN_Almacen_${fecha}.xlsx`);
 }
 
 // ---- IMPORTAR INVENTARIO COMPLETO (reemplaza todo) ----
 async function importarExcelCompleto(input){
   const file=input.files[0];if(!file)return;
-  if(!confirm('⚠️ Esto reemplazará TODO el inventario actual con el archivo Excel.\n¿Confirmas?'))return;
+  if(!confirm('⚠️ Esto reemplazará el inventario de los centros de costos que vengan en el archivo.\nSi el archivo no tiene columna "Centro de Costos", se reemplaza el inventario de '+ccNombre(ccActivo)+'.\n¿Confirmas?'))return;
   const reader=new FileReader();
   reader.onload=async(e)=>{
     try{
@@ -1762,6 +1839,7 @@ async function importarExcelCompleto(input){
         proveedor:header.findIndex(h=>h.includes('proveedor')),
         valor:header.findIndex(h=>h.includes('valor')),
         observaciones:header.findIndex(h=>h.includes('observaciones')),
+        cc:header.findIndex(h=>h.includes('centro')),
       };
       // El campo de nombre/descripción: primero busca Descripción (nuevo), luego Nombre (viejo)
       const colDesc=idx.descripcion>=0?idx.descripcion:idx.nombre;
@@ -1776,7 +1854,9 @@ async function importarExcelCompleto(input){
         // Si viene ID del Excel exportado, lo reutilizamos para mantener trazabilidad
         const existingId=idx.id>=0?String(row[idx.id]||'').trim():'';
         const itemId=existingId||('imp_'+i+'_'+Date.now());
+        const rowCC=idx.cc>=0?(ccIdDesdeTexto(row[idx.cc])||ccActivo):ccActivo;
         newInventario.push({
+          cc:rowCC,
           id:itemId,
           nombre:desc,
           codigo:idx.codigo>=0?String(row[idx.codigo]||'').trim():'',
@@ -1792,11 +1872,15 @@ async function importarExcelCompleto(input){
         });
       }
       if(!newInventario.length){alert('No se encontraron artículos en el archivo');return;}
-      // Eliminar inventario actual en Firestore
+      // Eliminar solo el inventario de los centros de costos que vienen en el archivo
+      const ccsArchivo=new Set(newInventario.map(it=>it.cc));
       const snap=await db.collection('inventario').get();
-      const delBatch=db.batch();
-      snap.docs.forEach(d=>delBatch.delete(d.ref));
-      await delBatch.commit();
+      const docsBorrar=snap.docs.filter(d=>ccsArchivo.has(d.data().cc||CC_DEFAULT));
+      for(let i=0;i<docsBorrar.length;i+=499){
+        const delBatch=db.batch();
+        docsBorrar.slice(i,i+499).forEach(d=>delBatch.delete(d.ref));
+        await delBatch.commit();
+      }
       // Escribir nuevo inventario en bloques de 499
       const CHUNK=499;
       for(let i=0;i<newInventario.length;i+=CHUNK){
@@ -1809,14 +1893,16 @@ async function importarExcelCompleto(input){
             descripcion:item.descripcion,categoria:item.categoria,
             cantidad:item.cantidad,disponible:item.disponible,
             stockMinimo:item.stockMinimo,proveedor:item.proveedor,
-            valor:item.valor,observaciones:item.observaciones
+            valor:item.valor,observaciones:item.observaciones,
+            cc:item.cc
           });
         });
         await batch.commit();
       }
-      inventario=newInventario;
-      renderInv(inventario);loadDashboard();
-      alert('✅ Inventario actualizado: '+newInventario.length+' artículos importados');
+      inventarioAll=inventarioAll.filter(it=>!ccsArchivo.has(it.cc||CC_DEFAULT)).concat(newInventario);
+      ccsArchivo.forEach(c=>{if(!centrosCostos.find(x=>x.id===c))centrosCostos.push({id:c,nombre:c});});
+      aplicarCC();
+      alert('✅ Inventario actualizado: '+newInventario.length+' artículos importados ('+[...ccsArchivo].map(ccNombre).join(', ')+')');
     }catch(err){alert('Error al importar: '+err.message);}
     input.value='';
   };
@@ -1825,7 +1911,7 @@ async function importarExcelCompleto(input){
 
 // ---- ANULACIONES ----
 function solicitarAnulacion(movId){
-  const mov=movimientos.find(m=>m.id===movId);if(!mov)return;
+  const mov=movimientosAll.find(m=>m.id===movId);if(!mov)return;
   anulMovActual=mov;
   document.getElementById('anulMovInfo').textContent=
     (mov.herrNombre||mov.nombre||'—')+' × '+mov.cantidad+' · '+
@@ -1900,7 +1986,7 @@ async function aprobarAnulacion(solId){
       anuladoPor:currentUser.email,
       anuladoFecha:new Date().toISOString()
     });
-    const item=inventario.find(i=>i.id===sol.herrId);
+    const item=inventarioAll.find(i=>i.id===sol.herrId);
     if(item){
       let upd={};
       if(sol.tipo==='salida'){
@@ -1921,7 +2007,7 @@ async function aprobarAnulacion(solId){
       resueltoPor:currentUser.email,
       resueltoFecha:new Date().toISOString()
     });
-    const mov=movimientos.find(m=>m.id===sol.movId);
+    const mov=movimientosAll.find(m=>m.id===sol.movId);
     if(mov){mov.anulado=true;mov.motivoAnulacion=sol.motivo+' — '+sol.detalle;}
     solicitudesPendientes=solicitudesPendientes.filter(s=>s.id!==solId);
     renderSolicitudes();renderHistorial(movimientos);renderInv(inventario);loadDashboard();
@@ -1943,6 +2029,161 @@ async function rechazarAnulacion(solId){
     renderSolicitudes();
     alert('Solicitud rechazada.');
   }catch(e){alert('Error: '+e.message);}
+}
+
+// ---- CENTROS DE COSTOS: funciones ----
+function ccNombre(id){const c=centrosCostos.find(x=>x.id===(id||CC_DEFAULT));return c?c.nombre:(id||CC_DEFAULT);}
+function ccIdDesdeTexto(txt){
+  const t=String(txt||'').trim();if(!t)return '';
+  const code=t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  const porNombre=centrosCostos.find(c=>c.id===code||c.nombre.toLowerCase()===t.toLowerCase());
+  return porNombre?porNombre.id:code;
+}
+function movVisibleEnCC(m){return (m.cc||CC_DEFAULT)===ccActivo||(m.tipo==='traslado'&&m.ccDestino===ccActivo);}
+function addMovLocal(m){movimientosAll.unshift(m);if(movVisibleEnCC(m))movimientos.unshift(m);}
+function addInvLocal(it){if(!it.cc)it.cc=ccActivo;inventarioAll.push(it);if(it.cc===ccActivo)inventario.push(it);}
+function pendientesOtrosCC(cedula){
+  const ccs=new Set();
+  movimientosAll.filter(m=>m.tipo==='salida'&&m.cedula===cedula&&!m.anulado&&(m.cc||CC_DEFAULT)!==ccActivo).forEach(s=>{
+    const devs=movimientosAll.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    const pend=Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal);
+    if(pend>0)ccs.add(ccNombre(s.cc));
+  });
+  return [...ccs];
+}
+async function loadCentrosCostos(){
+  try{
+    const snap=await db.collection('centros_costos').get();
+    snap.docs.forEach(d=>{
+      const data=d.data();
+      const ex=centrosCostos.find(c=>c.id===d.id);
+      if(ex){if(data.nombre)ex.nombre=data.nombre;}
+      else centrosCostos.push({id:d.id,nombre:data.nombre||d.id});
+    });
+  }catch(e){console.log('Centros de costos no disponibles:',e.message);}
+}
+function aplicarCC(){
+  localStorage.setItem('sersanCC',ccActivo);
+  inventario=inventarioAll.filter(i=>(i.cc||CC_DEFAULT)===ccActivo);
+  movimientos=movimientosAll.filter(movVisibleEnCC);
+  document.getElementById('ccBarNombre').textContent=ccNombre(ccActivo);
+  const lbl=document.getElementById('trasOrigenLbl');if(lbl)lbl.textContent=ccNombre(ccActivo);
+  llenarDestinosTraslado();
+  renderInv(inventario);renderHistorial(movimientos);loadDashboard();
+  if(document.getElementById('scAsignaciones').classList.contains('active'))loadTrabajadores();
+}
+function llenarDestinosTraslado(){
+  const sel=document.getElementById('trasDestino');if(!sel)return;
+  const otros=centrosCostos.filter(c=>c.id!==ccActivo);
+  sel.innerHTML=otros.length?otros.map(c=>'<option value="'+c.id+'">'+c.nombre+'</option>').join(''):'<option value="">No hay otros centros de costos</option>';
+}
+function limpiarFormulariosCC(){
+  // Al cambiar de centro de costos se limpian selecciones que apuntan a artículos del otro almacén
+  ['entBuscar','entHiddenId','salBuscar','salHiddenId','lisBuscar','lisHiddenId','lotBuscar','lotHiddenId','bajaBuscar','bajaHiddenId','trasBuscar','trasHiddenId','devCedBuscar','itemSearchAsig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  lisItems=[];renderLisItems();entLoteItems=[];renderLoteItems();
+  devSelected=null;devTrabActual=null;
+  ['devForm','devItemsList','devTrabInfo'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  const ar=document.getElementById('itemAsigResult');if(ar)ar.innerHTML='';
+  const pr=document.getElementById('pazResult');if(pr)pr.innerHTML='';
+  checkSalidaReqs();
+}
+function abrirSelectorCC(){
+  const lista=document.getElementById('ccLista');
+  lista.innerHTML='';
+  centrosCostos.forEach(c=>{
+    const n=inventarioAll.filter(i=>(i.cc||CC_DEFAULT)===c.id).length;
+    const b=document.createElement('button');
+    b.className='cc-opt'+(c.id===ccActivo?' active':'');
+    b.innerHTML=(c.id===ccActivo?'✓ ':'📍 ')+c.nombre+'<small>'+n+' artículos</small>';
+    b.addEventListener('click',()=>cambiarCC(c.id));
+    lista.appendChild(b);
+  });
+  document.getElementById('ccNuevoWrap').style.display=isAdmin?'block':'none';
+  document.getElementById('ccNuevoNombre').value='';
+  openModal('modalCC');
+}
+function cambiarCC(id){
+  if(id!==ccActivo){ccActivo=id;limpiarFormulariosCC();aplicarCC();}
+  closeModal('modalCC');
+}
+async function crearCentroCostos(){
+  if(!isAdmin){alert('Solo un administrador puede crear centros de costos');return;}
+  const nombre=document.getElementById('ccNuevoNombre').value.trim();
+  if(!nombre){alert('Escribe el nombre del centro de costos');return;}
+  const id=ccIdDesdeTexto(nombre);
+  if(!id){alert('Nombre no válido');return;}
+  if(centrosCostos.find(c=>c.id===id||c.nombre.toLowerCase()===nombre.toLowerCase())){alert('Ya existe el centro de costos '+nombre);return;}
+  try{
+    await db.collection('centros_costos').doc(id).set({nombre,creadoPor:currentUser.email,fecha:new Date().toISOString()});
+  }catch(e){alert('No se pudo crear el centro de costos: '+e.message+'\n\nSi el error dice "permission", hay que permitir la colección centros_costos en las reglas de Firestore.');return;}
+  centrosCostos.push({id,nombre});
+  llenarDestinosTraslado();
+  alert('✅ Centro de costos creado: '+nombre);
+  abrirSelectorCC();
+}
+async function registrarTraslado(){
+  if(!canOperate)return;
+  if(!navigator.onLine){alert('Los traslados necesitan conexión a internet porque actualizan dos almacenes a la vez.');return;}
+  const herrNombre=document.getElementById('trasBuscar').value.trim();
+  const herrId=document.getElementById('trasHiddenId').value;
+  const cant=parseInt(document.getElementById('trasCant').value)||0;
+  const destino=document.getElementById('trasDestino').value;
+  const fecha=document.getElementById('trasFecha').value;
+  const responsable=document.getElementById('trasResp').value.trim();
+  const obs=document.getElementById('trasObs').value.trim();
+  if(!herrNombre||!herrId){alert('Selecciona un artículo de la lista');return;}
+  const item=inventario.find(i=>i.id===herrId);
+  if(!item){alert('Artículo no encontrado en '+ccNombre(ccActivo));return;}
+  if(cant<1){alert('La cantidad debe ser mayor a 0');return;}
+  if(cant>(item.disponible||0)){alert('⚠️ Solo hay '+(item.disponible||0)+' unidad(es) disponible(s) de "'+item.nombre+'" en '+ccNombre(ccActivo)+'.');return;}
+  if(!destino||destino===ccActivo){alert('Selecciona un centro de costos destino distinto al actual');return;}
+  if(!fecha){alert('Ingresa la fecha de traslado');return;}
+  if(!confirm('¿Trasladar '+cant+' × "'+item.nombre+'"\nde '+ccNombre(ccActivo)+' a '+ccNombre(destino)+'?'))return;
+  const btn=document.getElementById('btnTraslado');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const norm=v=>String(v||'').trim().toLowerCase();
+  let dest=inventarioAll.find(i=>(i.cc||CC_DEFAULT)===destino&&i.id!==item.id&&norm(i.nombre)===norm(item.nombre)&&norm(i.codigo)===norm(item.codigo));
+  const batch=db.batch();
+  batch.update(db.collection('inventario').doc(item.id),{cantidad:item.cantidad-cant,disponible:item.disponible-cant});
+  let destId,nuevoDest=null;
+  if(dest){
+    destId=dest.id;
+    batch.update(db.collection('inventario').doc(destId),{cantidad:(dest.cantidad||0)+cant,disponible:(dest.disponible||0)+cant});
+  } else {
+    const ref=db.collection('inventario').doc();
+    destId=ref.id;
+    nuevoDest={nombre:item.nombre||'',codigo:item.codigo||'',categoria:item.categoria||'Herramientas',marca:item.marca||'',descripcion:item.descripcion||'',
+      stockMinimo:item.stockMinimo||0,proveedor:item.proveedor||'',valor:item.valor||'',observaciones:item.observaciones||'',
+      cc:destino,cantidad:cant,disponible:cant};
+    if(item.fotoArticulo)nuevoDest.fotoArticulo=item.fotoArticulo;
+    batch.set(ref,nuevoDest);
+  }
+  const movRef=db.collection('movimientos').doc();
+  const mov={tipo:'traslado',herrId:item.id,herrIdDestino:destId,herrNombre:item.nombre,nombre:item.nombre,
+    categoria:item.categoria||'',codigo:item.codigo||'',cantidad:cant,cc:ccActivo,ccDestino:destino,
+    fechaTraslado:fecha,responsable,observaciones:obs,creadoPor:currentUser.email,fecha:new Date().toISOString()};
+  batch.set(movRef,mov);
+  try{
+    await batch.commit();
+  }catch(e){
+    btn.innerHTML='🔁 Registrar traslado';btn.disabled=false;
+    alert('No se pudo registrar el traslado: '+e.message+'\nNo se movió ninguna unidad.');return;
+  }
+  // Actualizar datos locales
+  item.cantidad-=cant;item.disponible-=cant;
+  if(dest){dest.cantidad=(dest.cantidad||0)+cant;dest.disponible=(dest.disponible||0)+cant;}
+  else{nuevoDest.id=destId;inventarioAll.push(nuevoDest);}
+  mov.id=movRef.id;movimientosAll.unshift(mov);
+  aplicarCC();
+  btn.innerHTML='🔁 Registrar traslado';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Traslado registrado!';
+  document.getElementById('succSub').textContent=cant+' × '+item.nombre+' → '+ccNombre(destino);
+  document.getElementById('succNote').textContent='Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  ['trasBuscar','trasHiddenId','trasResp','trasObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('trasCant').value='1';
+  document.getElementById('trasFecha').value=new Date().toISOString().split('T')[0];
 }
 
 // ---- FIRMA ----
@@ -2053,10 +2294,11 @@ function acSearch(input,listId,hiddenId){
   const q=input.value.toLowerCase().trim();
   const list=document.getElementById(listId);
   if(!q){list.classList.remove('open');return;}
-  const isSalida=listId==='salAcList';
+  const isTras=listId==='trasAcList';
+  const isSalida=listId==='salAcList'||isTras;
   const matches=inventario.filter(i=>{
     const nameMatch=(i.nombre||'').toLowerCase().includes(q)||(i.codigo||'').toLowerCase().includes(q);
-    const catMatch=!currentMovCat||i.categoria===currentMovCat;
+    const catMatch=isTras||!currentMovCat||i.categoria===currentMovCat;
     const stockOk=!isSalida||(i.disponible||0)>0;
     return nameMatch&&catMatch&&stockOk;
   }).slice(0,12);
@@ -2143,12 +2385,12 @@ async function guardarNuevoItem(){
   const marca=document.getElementById('nuevaMarca').value.trim();
   const descripcion=document.getElementById('nuevaDesc').value.trim();
   if(!nombre){alert('El nombre es obligatorio');return;}
-  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0};
+  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo};
   try{
     const ref=await db.collection('inventario').add(newItem);
     newItem.id=ref.id;
   }catch(e){newItem.id='local_'+Date.now();}
-  inventario.push(newItem);
+  addInvLocal(newItem);
   renderInv(inventario);
   closeModal('modalNuevoItem');
   document.getElementById('entBuscar').value=nombre;
@@ -2162,19 +2404,20 @@ async function guardarNuevoItem(){
 function buscarPazSalvo(){
   const cedula=document.getElementById('pazCedula').value.trim();
   if(!cedula){alert('Ingresa la cédula');return;}
-  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula);
+  // Paz y salvo revisa TODOS los centros de costos
+  const salidas=movimientosAll.filter(m=>m.tipo==='salida'&&m.cedula===cedula&&!m.anulado);
   const res=document.getElementById('pazResult');
   if(!salidas.length){res.innerHTML='<div class="card"><div style="font-size:12px;color:var(--tx2)">No se encontraron registros para la cédula <strong>'+cedula+'</strong></div></div>';return;}
   const trab=salidas[0];
   const items=salidas.map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
+    const devs=movimientosAll.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
     const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
     return {...s,cantPendiente:Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal)};
   }).filter(s=>s.cantPendiente>0);
   if(items.length>0){
     res.innerHTML='<div class="alert"><div class="alert-name">⚠️ No puede recibir paz y salvo</div><div class="alert-sub">'+(trab.trabajador||'—')+' tiene '+items.length+' artículo(s) pendiente(s)</div></div>'
       +'<div class="sec-title">Pendientes:</div>'
-      +items.map(i=>'<div class="pend"><div class="pend-name">'+(i.herrNombre||'—')+'</div><div class="pend-det">'+i.cantPendiente+' unidad(es)</div></div>').join('');
+      +items.map(i=>'<div class="pend"><div class="pend-name">'+(i.herrNombre||'—')+'</div><div class="pend-det">'+i.cantPendiente+' unidad(es) · '+ccNombre(i.cc)+'</div></div>').join('');
   } else {
     const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
     const codigo='PS-'+Date.now().toString(36).toUpperCase();
@@ -2198,7 +2441,11 @@ async function generarPazYSalvo(cedula,codigo){
   if(!email){alert('Ingresa el correo del trabajador');return;}
   const fecha=new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
   const verUrl='https://santvel87.github.io/sersan-almacen?paz='+codigo;
-  try{await db.collection('pazysalvos').add({cedula,nombre,email,fecha:new Date().toISOString(),codigo,verificacion:verUrl});}catch(e){}
+  // Almacén(es) donde el trabajador tuvo salidas; si no tuvo, el centro de costos activo
+  const ccsTrab=[...new Set(movimientosAll.filter(m=>m.tipo==='salida'&&m.cedula===cedula&&!m.anulado).map(m=>m.cc||CC_DEFAULT))];
+  if(!ccsTrab.length)ccsTrab.push(ccActivo);
+  const almacen=ccsTrab.map(ccNombre).join(' y ');
+  try{await db.collection('pazysalvos').add({cedula,nombre,email,fecha:new Date().toISOString(),codigo,verificacion:verUrl,almacen,centrosCostos:ccsTrab});}catch(e){}
   // Generate QR
   let qrDataUrl='';
   try{
@@ -2240,7 +2487,7 @@ td:first-child{font-weight:700;background:#f5f5f5;width:38%}
   <img src="${logoSrc}" class="logo"/>
   <div style="text-align:right">
     <div style="font-size:15px;font-weight:900">SERSAN INGENIERÍA S.A.S.</div>
-    <div style="font-size:10px;color:#555;margin-top:3px">Almacén — Yolombó, Antioquia</div>
+    <div style="font-size:10px;color:#555;margin-top:3px">Almacén ${almacen}</div>
   </div>
 </div>
 <div class="title">
@@ -2259,7 +2506,7 @@ td:first-child{font-weight:700;background:#f5f5f5;width:38%}
 </table>
 <div class="cert-text">
   El señor(a) <strong>${nombre}</strong>, identificado(a) con cédula de ciudadanía número <strong>${cedula}</strong>,
-  se encuentra a <strong>PAZ Y SALVO</strong> con el Almacén de <strong>SERSAN INGENIERÍA S.A.S.</strong>
+  se encuentra a <strong>PAZ Y SALVO</strong> con el Almacén ${almacen} de <strong>SERSAN INGENIERÍA S.A.S.</strong>
   a la fecha <strong>${fecha}</strong>. No tiene ningún artículo pendiente por devolver al almacén de la empresa.
 </div>
 <div class="footer">
@@ -2289,7 +2536,7 @@ td:first-child{font-weight:700;background:#f5f5f5;width:38%}
       <div style="font-size:15px;font-weight:800;margin-bottom:4px">Paz y Salvo generado</div>
       <div style="font-size:11px;color:#555;margin-bottom:16px">${nombre} · CC ${cedula}</div>
       <a href="${blobUrl}" target="_blank" style="display:block;background:#1A1A1A;color:#F5C800;padding:12px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:8px">📥 Ver / Guardar PDF</a>
-      <a href="mailto:${email}?subject=${encodeURIComponent('Paz y Salvo Almacén SERSAN - '+nombre)}&body=${encodeURIComponent('Estimado(a) '+nombre+',\n\nAdjunto encontrará su certificado de Paz y Salvo con el Almacén de SERSAN INGENIERÍA S.A.S.\n\nFecha: '+fecha+'\nCódigo: '+codigo+'\nVerificar en: '+verUrl+'\n\nAtentamente,\nDiego Lombana\nAlmacenista - SERSAN INGENIERÍA S.A.S.')}" style="display:block;background:#185FA5;color:#fff;padding:12px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:8px">📧 Enviar por correo</a>
+      <a href="mailto:${email}?subject=${encodeURIComponent('Paz y Salvo Almacén SERSAN - '+nombre)}&body=${encodeURIComponent('Estimado(a) '+nombre+',\n\nAdjunto encontrará su certificado de Paz y Salvo con el Almacén '+almacen+' de SERSAN INGENIERÍA S.A.S.\n\nFecha: '+fecha+'\nCódigo: '+codigo+'\nVerificar en: '+verUrl+'\n\nAtentamente,\nDiego Lombana\nAlmacenista - SERSAN INGENIERÍA S.A.S.')}" style="display:block;background:#185FA5;color:#fff;padding:12px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:8px">📧 Enviar por correo</a>
       <button onclick="this.closest('div').parentElement.remove()" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:12px;cursor:pointer">Cerrar</button>
     </div>
   `;

@@ -245,6 +245,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <div class="fg"><label>Observaciones</label><textarea id="entObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
         <button class="btn primary" onclick="registrarEntrada()">✓ Registrar entrada al almacén</button>
+        <button class="btn" onclick="cancelarRegistro('entModoInd')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end entModoInd -->
 
         <!-- MODO LOTE -->
@@ -299,6 +300,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           </div>
           <div class="fg"><label>Observaciones del lote</label><textarea id="lotObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
           <button class="btn primary" onclick="registrarEntradaLote()">✓ Registrar lote al almacén</button>
+        <button class="btn" onclick="cancelarRegistro('entModoLot')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end entModoLot -->
       </div>
 
@@ -351,6 +353,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <div id="salReqStatus" style="font-size:10px;color:var(--rd);margin-bottom:8px;display:none">⚠️ Falta: <span id="salReqList"></span></div>
         <div class="fg"><label>Observaciones</label><textarea id="salObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
         <button class="btn primary" id="btnSalida" onclick="registrarSalida()" disabled>✓ Registrar salida de almacén</button>
+        <button class="btn" onclick="cancelarRegistro('salModoInd')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end salModoInd -->
 
         <!-- MODO LISTA -->
@@ -392,6 +395,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           </div>
           <div class="fg"><label>Observaciones</label><textarea id="lisObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
           <button class="btn primary" onclick="registrarSalidaLista()">✓ Registrar salida por lote</button>
+        <button class="btn" onclick="cancelarRegistro('salModoLis')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end salModoLis -->
       </div>
 
@@ -438,6 +442,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           </div>
           <div class="fg"><label>Observaciones</label><textarea id="devObs" rows="2" style="resize:none" placeholder="Estado, novedades..."></textarea></div>
           <button class="btn primary" onclick="registrarDevolucion()">✓ Confirmar devolución</button>
+        <button class="btn" onclick="cancelarRegistro('tDev')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
           <button class="btn outline" onclick="cancelarDev()" style="font-size:11px">Cancelar</button>
         </div>
       </div>
@@ -466,6 +471,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <div class="fg"><label>Observaciones</label><textarea id="bajaObs" rows="2" style="resize:none" placeholder="Detalles adicionales..."></textarea></div>
         <button class="btn" style="background:var(--rd);color:#fff;border-color:var(--rd)" onclick="registrarBaja()">🚫 Confirmar baja de inventario</button>
+        <button class="btn" onclick="cancelarRegistro('tBaja')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
       </div>
       <!-- TRASLADO ENTRE CENTROS DE COSTOS -->
       <div id="tTras" style="display:none">
@@ -483,6 +489,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <div class="fg"><label>Responsable del transporte / quien recibe</label><input type="text" id="trasResp" placeholder="Nombre (opcional)"/></div>
         <div class="fg"><label>Observaciones</label><textarea id="trasObs" rows="2" style="resize:none" placeholder="Guía, vehículo, estado del artículo..."></textarea></div>
         <button class="btn primary" id="btnTraslado" onclick="registrarTraslado()">🔁 Registrar traslado</button>
+        <button class="btn" onclick="cancelarRegistro('tTras')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
       </div>
 
     </div>
@@ -2469,6 +2476,43 @@ async function registrarTraslado(){
   ['trasBuscar','trasHiddenId','trasResp','trasObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('trasCant').value='1';
   document.getElementById('trasFecha').value=new Date().toISOString().split('T')[0];
+}
+
+// ---- CANCELAR REGISTRO (limpia el formulario sin guardar nada) ----
+function cancelarRegistro(contId){
+  if(!confirm('¿Cancelar este registro? Se borrará lo que hayas llenado y no se guardará nada.'))return;
+  const cont=document.getElementById(contId);if(!cont)return;
+  const hoy=new Date().toISOString().split('T')[0];
+  cont.querySelectorAll('input').forEach(el=>{
+    if(el.type==='date')el.value=hoy;
+    else if(el.type==='number')el.value=el.defaultValue||'';
+    else if(el.type==='checkbox'||el.type==='radio')el.checked=el.defaultChecked;
+    else el.value='';
+  });
+  cont.querySelectorAll('textarea').forEach(el=>el.value='');
+  cont.querySelectorAll('select').forEach(el=>{const d=[...el.options].findIndex(o=>o.defaultSelected);el.selectedIndex=d>=0?d:0;});
+  cont.querySelectorAll('img.photo-preview').forEach(img=>{
+    if(FACTURA_PREVIEWS.includes(img.id)){const box=img.previousElementSibling;limpiarArchivoFactura(img.id,box&&box.id?box.id:'');return;}
+    img.style.display='none';img.removeAttribute('src');
+    const box=img.previousElementSibling;if(box&&box.classList.contains('photo-box'))box.style.display='block';
+  });
+  cont.querySelectorAll('canvas.sig-pad').forEach(c=>c.getContext('2d').clearRect(0,0,c.width,c.height));
+  cont.querySelectorAll('.autocomplete-list').forEach(l=>{l.classList.remove('open');l.innerHTML='';});
+  if(contId==='entModoLot'){
+    entLoteItems=[];lotModoFactura=null;
+    ['lotMismaSi','lotMismaNo'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    document.getElementById('lotFacturaUnica').style.display='none';
+    document.getElementById('lotItemFacturaWrap').style.display='none';
+    renderLoteItems();
+  }
+  if(contId==='salModoLis'){lisItems=[];renderLisItems();}
+  if(contId==='tDev'){
+    devSelected=null;devTrabActual=null;
+    ['devTrabInfo','devItemsList','devForm'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  }
+  if(contId==='tTras')document.getElementById('trasCant').value='1';
+  checkSalidaReqs();
+  document.getElementById('scMovimientos').scrollTop=0;window.scrollTo(0,0);
 }
 
 // ---- FIRMA ----

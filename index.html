@@ -211,6 +211,12 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <button class="ctab" onclick="setMovCat(this,'Seguridad','ent')">🛡️ Seguridad</button>
           <button class="ctab" onclick="setMovCat(this,'Mecánica','ent')">⚙️ Mecánica</button>
           <button class="ctab" onclick="setMovCat(this,'Eléctrica','ent')">⚡ Eléctrica</button>
+          <button class="ctab" onclick="setMovCat(this,'Manual','ent')">🪛 Manual</button>
+          <button class="ctab" onclick="setMovCat(this,'Apriete','ent')">🔩 Apriete</button>
+          <button class="ctab" onclick="setMovCat(this,'Medición','ent')">📏 Medición</button>
+          <button class="ctab" onclick="setMovCat(this,'Equipos','ent')">🧰 Equipos</button>
+          <button class="ctab" onclick="setMovCat(this,'Papelería','ent')">📝 Papelería</button>
+          <button class="ctab" onclick="setMovCat(this,'Otra','ent')">📦 Otra</button>
         </div>
         <div class="fg"><label>Artículo <span class="req-indicator">*</span></label>
           <div class="autocomplete-wrap">
@@ -221,6 +227,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <button class="btn outline" style="margin-bottom:10px;font-size:11px;padding:8px" onclick="openNuevoItem()">➕ Agregar artículo nuevo al inventario</button>
         <div class="fg"><label>Cantidad <span class="req-indicator">*</span></label><input type="number" id="entCant" value="1" min="1"/></div>
+        <div class="fg"><label>Área a la que pertenece <span class="req-indicator">*</span></label><select id="entArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option></select></div>
         <div class="fg"><label>Código interno</label><input type="text" id="entCodigo" placeholder="Ej: ADA-GEN" readonly style="background:var(--bg)"/></div>
         <div class="fg"><label>Marca</label><input type="text" id="entMarca" placeholder="Marca del artículo"/></div>
         <div class="fg"><label>Descripción</label><input type="text" id="entDesc" placeholder="Características"/></div>
@@ -289,6 +296,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
               <button type="button" id="rmprevLotItem" onclick="limpiarArchivoFactura('prevLotItem','pbLotItem')" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar archivo cargado</button>
               <div style="font-size:9px;color:var(--tx3);margin-bottom:6px">Si varios artículos tienen el mismo N° de factura, basta con adjuntarla una vez.</div>
             </div>
+            <select id="lotAreaItem" style="width:100%;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px;margin-bottom:6px"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option></select>
             <div style="display:flex;gap:6px;margin-bottom:6px">
               <input type="number" id="lotCantItem" value="1" min="1" title="Cantidad" style="width:60px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
               <input type="number" id="lotValorItem" min="0" placeholder="Valor unit. $" style="width:110px;min-width:0;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px"/>
@@ -323,6 +331,12 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <button class="ctab" onclick="setMovCat(this,'Seguridad','sal')">🛡️ Seguridad</button>
           <button class="ctab" onclick="setMovCat(this,'Mecánica','sal')">⚙️ Mecánica</button>
           <button class="ctab" onclick="setMovCat(this,'Eléctrica','sal')">⚡ Eléctrica</button>
+          <button class="ctab" onclick="setMovCat(this,'Manual','sal')">🪛 Manual</button>
+          <button class="ctab" onclick="setMovCat(this,'Apriete','sal')">🔩 Apriete</button>
+          <button class="ctab" onclick="setMovCat(this,'Medición','sal')">📏 Medición</button>
+          <button class="ctab" onclick="setMovCat(this,'Equipos','sal')">🧰 Equipos</button>
+          <button class="ctab" onclick="setMovCat(this,'Papelería','sal')">📝 Papelería</button>
+          <button class="ctab" onclick="setMovCat(this,'Otra','sal')">📦 Otra</button>
         </div>
         <div class="fg"><label>Artículo <span class="req-indicator">*</span></label>
           <div class="autocomplete-wrap">
@@ -508,6 +522,10 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <button class="ctab" onclick="filterInvCat(this,'Eléctrica')">⚡</button>
       <button class="ctab" onclick="filterInvCat(this,'Manual')">🪛</button>
       <button class="ctab" onclick="filterInvCat(this,'Apriete')">🔩</button>
+      <button class="ctab" onclick="filterInvCat(this,'Medición')">📏</button>
+      <button class="ctab" onclick="filterInvCat(this,'Equipos')">🧰</button>
+      <button class="ctab" onclick="filterInvCat(this,'Papelería')">📝</button>
+      <button class="ctab" onclick="filterInvCat(this,'Otra')">📦</button>
     </div>
     <div class="search-box"><input type="text" id="invSearch" placeholder="Buscar artículo, código, marca..." oninput="filterInv(this.value)"/></div>
     <div id="invStats" style="font-size:10px;color:var(--tx3);margin-bottom:8px"></div>
@@ -616,9 +634,12 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <option value="Manual">🪛 Manual</option>
           <option value="Apriete">🔩 Apriete</option>
           <option value="Medición">📏 Medición</option>
+          <option value="Equipos">🧰 Equipos</option>
+          <option value="Papelería">📝 Papelería</option>
           <option value="Otra">📦 Otra</option>
         </select>
       </div>
+      <div class="fg"><label>Área a la que pertenece <span class="req-indicator">*</span></label><select id="nuevoArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option></select></div>
       <div class="fg"><label>Código interno</label><input type="text" id="nuevoCodigo" placeholder="Ej: MAR-GEN"/></div>
       <div class="fg"><label>Marca</label><input type="text" id="nuevaMarca" placeholder="Opcional"/></div>
       <div class="fg"><label>Descripción</label><input type="text" id="nuevaDesc" placeholder="Características técnicas"/></div>
@@ -649,9 +670,10 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <select id="editCategoria">
           <option value="Herramientas">🔧 Herramientas</option><option value="EPP">🦺 EPP</option><option value="Dotación">👕 Dotación</option>
           <option value="Seguridad">🛡️ Seguridad</option><option value="Mecánica">⚙️ Mecánica</option><option value="Eléctrica">⚡ Eléctrica</option>
-          <option value="Manual">🪛 Manual</option><option value="Apriete">🔩 Apriete</option><option value="Medición">📏 Medición</option><option value="Otra">📦 Otra</option>
+          <option value="Manual">🪛 Manual</option><option value="Apriete">🔩 Apriete</option><option value="Medición">📏 Medición</option><option value="Equipos">🧰 Equipos</option><option value="Papelería">📝 Papelería</option><option value="Otra">📦 Otra</option>
         </select>
       </div>
+      <div class="fg"><label>Área a la que pertenece</label><select id="editArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option></select></div>
       <div class="fg"><label>Código interno</label><input type="text" id="editCodigo"/></div>
       <div class="fg"><label>Marca</label><input type="text" id="editMarca"/></div>
       <div class="fg"><label>Descripción</label><textarea id="editDesc" rows="3" style="resize:none"></textarea></div>
@@ -952,7 +974,7 @@ async function loadInventario(){
 }
 
 function catIcon(c){
-  const m={'EPP':'🦺','Dotación':'👕','Seguridad':'🛡️','Mecánica':'⚙️','Eléctrica':'⚡','Manual':'🪛','Apriete':'🔩','Medición':'📏'};
+  const m={'EPP':'🦺','Dotación':'👕','Seguridad':'🛡️','Mecánica':'⚙️','Eléctrica':'⚡','Manual':'🪛','Apriete':'🔩','Medición':'📏','Equipos':'🧰','Papelería':'📝','Herramientas':'🔧','Otra':'📦'};
   return m[c]||'🔧';
 }
 function getBadge(i){
@@ -993,6 +1015,7 @@ function showItemDetail(id,desdeModal){
       <div class="detail-row"><span class="detail-key">Código</span><span class="detail-val">${item.codigo||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Marca</span><span class="detail-val">${item.marca||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Categoría</span><span class="detail-val">${item.categoria||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Área</span><span class="detail-val">${item.area||'<span style="color:var(--rd)">Sin asignar</span>'}</span></div>
       <div class="detail-row"><span class="detail-key">Descripción</span><span class="detail-val" style="text-align:right;font-size:10px">${item.descripcion||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Valor unitario</span><span class="detail-val" style="font-weight:800">${fmtCOP(item.valor)}</span></div>
       ${numValor(item.valor)?`<div class="detail-row"><span class="detail-key">Valor total (${item.cantidad} und.)</span><span class="detail-val">${fmtCOP(numValor(item.valor)*(item.cantidad||0))}</span></div>`:''}
@@ -1013,6 +1036,8 @@ function showItemDetail(id,desdeModal){
   else openModal('modalItemDetail');
 }
 
+// ---- ÁREAS DE LA EMPRESA ----
+const AREAS=["Obra civil", "Montaje", "Revisión", "Administración"];
 // ---- PRECIOS ----
 function numValor(v){const n=parseFloat(String(v==null?'':v).replace(/[^0-9.,-]/g,'').replace(/\./g,'').replace(',','.'));return isNaN(n)?0:n;}
 function fmtCOP(v){const n=numValor(v);return n?'$'+n.toLocaleString('es-CO',{maximumFractionDigits:0}):'—';}
@@ -1039,7 +1064,7 @@ function abrirEdicionItem(id){
   editQuitarFoto=false;editQuitarFactura=false;
   const v=(k,val)=>{document.getElementById(k).value=val==null?'':val;};
   v('editId',item.id);v('editNombre',item.nombre);v('editCodigo',item.codigo);v('editMarca',item.marca);
-  v('editDesc',item.descripcion);v('editProv',item.proveedor);v('editValor',item.valor);v('editStockMin',item.stockMinimo);v('editObs',item.observaciones);
+  v('editDesc',item.descripcion);v('editArea',item.area);v('editProv',item.proveedor);v('editValor',item.valor);v('editStockMin',item.stockMinimo);v('editObs',item.observaciones);
   const sel=document.getElementById('editCategoria');
   if(item.categoria&&![...sel.options].some(o=>o.value===item.categoria)){const o=document.createElement('option');o.value=o.textContent=item.categoria;sel.appendChild(o);}
   sel.value=item.categoria||'Otra';
@@ -1091,6 +1116,7 @@ async function guardarEdicionItem(){
   }
   const btn=document.getElementById('btnGuardarEdit');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const upd={nombre,codigo:g('editCodigo'),marca:g('editMarca'),categoria:document.getElementById('editCategoria').value,
+    area:document.getElementById('editArea').value,
     descripcion:g('editDesc'),proveedor:g('editProv'),valor:g('editValor'),stockMinimo:parseInt(g('editStockMin'))||0,observaciones:g('editObs')};
   // foto
   const nuevaFoto=getPhotoB64('prevEditFoto');
@@ -1638,7 +1664,10 @@ function agregarItemLote(){
   if(existIdx>=0){entLoteItems[existIdx].cantidad+=cant;}
   else{
     const inv=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
-    const nuevo={herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:'',valor:document.getElementById('lotValorItem').value.trim()};
+    const areaIt=document.getElementById('lotAreaItem').value;
+    if(!areaIt){alert('Selecciona el área de la empresa a la que pertenece el artículo');return;}
+    const nuevo={herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:'',valor:document.getElementById('lotValorItem').value.trim(),area:areaIt};
+    document.getElementById('lotAreaItem').value='';
     document.getElementById('lotValorItem').value='';
     if(lotModoFactura==='varias'){
       nuevo.factura=document.getElementById('lotItemFact').value.trim();
@@ -1665,7 +1694,7 @@ function renderLoteItems(){
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5">
       <div style="flex:1">
         <div style="font-size:11px;font-weight:700">${it.herrNombre}</div>
-        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.${numValor(it.valor)?' · '+fmtCOP(it.valor)+' c/u':''}${lotModoFactura==='varias'?(it.factura?' · Fact. '+it.factura:' · Sin N° factura')+(it.archivo?' · 📄':''):''}</div>
+        <div style="font-size:9px;color:var(--tx3)">${it.categoria}${it.area?' · '+it.area:''} · ${it.cantidad} unid.${numValor(it.valor)?' · '+fmtCOP(it.valor)+' c/u':''}${lotModoFactura==='varias'?(it.factura?' · Fact. '+it.factura:' · Sin N° factura')+(it.archivo?' · 📄':''):''}</div>
       </div>
       <button onclick="removeItemLote(${i})" style="padding:4px 8px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">✕</button>
     </div>`).join('');
@@ -1706,7 +1735,7 @@ async function registrarEntradaLote(){
     it.herrId=await crearDesdeCatalogo(it.herrId);
     const data={
       tipo:'entrada',herrId:it.herrId,herrNombre:it.herrNombre,nombre:it.herrNombre,
-      categoria:it.categoria,cantidad:it.cantidad,valor:it.valor||'',
+      categoria:it.categoria,cantidad:it.cantidad,valor:it.valor||'',area:it.area||'',
       proveedor:lotModoFactura==='una'?proveedor:(it.proveedor||''),
       factura:lotModoFactura==='una'?factura:(it.factura||''),
       fechaIngreso:fecha,
@@ -1723,6 +1752,7 @@ async function registrarEntradaLote(){
         const upd={cantidad:item.cantidad,disponible:item.disponible};
         if(numValor(data.valor)>0){upd.valor=data.valor;item.valor=data.valor;}
         if(String(data.proveedor||'').trim()){upd.proveedor=data.proveedor;item.proveedor=data.proveedor;}
+        if(it.area&&item.area!==it.area){upd.area=it.area;item.area=it.area;}
         try{await db.collection('inventario').doc(it.herrId).update(upd);}catch(e){}
       }
     }
@@ -1755,6 +1785,8 @@ async function registrarEntrada(){
   if(!herrNombre){alert('Selecciona o escribe un artículo');return;}
   if(cant<1){alert('Cantidad debe ser mayor a 0');return;}
   if(!fecha){alert('Ingresa la fecha de ingreso');return;}
+  const area=document.getElementById('entArea').value;
+  if(!area){alert('Selecciona el área de la empresa a la que pertenece el artículo');return;}
   const btn=document.querySelector('#tEnt .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const fotoArticulo=getPhotoB64('prevEntArt');
@@ -1771,7 +1803,7 @@ async function registrarEntrada(){
     if(existente){
       finalHerrId=existente.id;
     } else {
-      const newItem={nombre:herrNombre,categoria:currentMovCat||'Otra',codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo};
+      const newItem={nombre:herrNombre,categoria:currentMovCat||'Otra',codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo,area};
       try{
         const ref=await db.collection('inventario').add(newItem);
         newItem.id=ref.id;
@@ -1782,7 +1814,7 @@ async function registrarEntrada(){
     }
   }
   const data={
-    tipo:'entrada',herrId:finalHerrId,herrNombre,nombre:herrNombre,categoria:catEntrada,cantidad:cant,
+    tipo:'entrada',herrId:finalHerrId,herrNombre,nombre:herrNombre,categoria:catEntrada,cantidad:cant,area,
     codigo,marca,descripcion,
     proveedor:document.getElementById('entProv').value,
     factura:document.getElementById('entFact').value,
@@ -1807,6 +1839,7 @@ async function registrarEntrada(){
       // El precio y el proveedor de la última compra pasan a ser los actuales del artículo
       if(numValor(data.valor)>0){upd.valor=data.valor;item.valor=data.valor;}
       if(String(data.proveedor||'').trim()){upd.proveedor=data.proveedor;item.proveedor=data.proveedor;}
+      if(area&&item.area!==area){upd.area=area;item.area=area;}
       try{await db.collection('inventario').doc(finalHerrId).update(upd);}catch(e){}
     }
   }
@@ -1816,7 +1849,7 @@ async function registrarEntrada(){
   document.getElementById('succSub').textContent=cant+' × '+herrNombre;
   document.getElementById('succNote').textContent=res==='offline'?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
   navTo('scSuccess','Confirmación');
-  ['entBuscar','entHiddenId','entCodigo','entMarca','entDesc','entProv','entFact','entValor','entObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['entBuscar','entHiddenId','entCodigo','entMarca','entDesc','entProv','entFact','entValor','entObs','entArea'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('entCant').value='1';
   document.getElementById('entFecha').value=new Date().toISOString().split('T')[0];
   limpiarArchivoFactura('prevEnt','pbEnt');
@@ -1984,7 +2017,7 @@ function exportarExcel(){
     if(m.herrId) asignadosPorId[m.herrId]=(asignadosPorId[m.herrId]||0)+(m.cantPendiente||0);
   });
 
-  const invHeaders=['ID','Código','Descripción','Marca','Categoría','Cantidad Total','Disponible','Asignado','Stock Mínimo','Proveedor','Valor Unitario','Fecha Último Ingreso','Observaciones','Centro de Costos'];
+  const invHeaders=['ID','Código','Descripción','Marca','Categoría','Cantidad Total','Disponible','Asignado','Stock Mínimo','Proveedor','Valor Unitario','Fecha Último Ingreso','Observaciones','Centro de Costos','Área'];
   const invData=[invHeaders];
   inventario.forEach(item=>{
     const asignado=asignadosPorId[item.id]||0;
@@ -2006,12 +2039,13 @@ function exportarExcel(){
       item.valor||'',
       fechaIngreso,
       item.observaciones||'',
-      item.cc||CC_DEFAULT
+      item.cc||CC_DEFAULT,
+      item.area||''
     ]);
   });
   const wsInv=XLSX.utils.aoa_to_sheet(invData);
   // Anchos de columna
-  wsInv['!cols']=[{wch:18},{wch:12},{wch:38},{wch:16},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:20},{wch:14},{wch:18},{wch:28},{wch:16}];
+  wsInv['!cols']=[{wch:18},{wch:12},{wch:38},{wch:16},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:20},{wch:14},{wch:18},{wch:28},{wch:16},{wch:16}];
   XLSX.utils.book_append_sheet(wb,wsInv,'INVENTARIO');
 
   // ── HOJA 2: ENTRADAS ────────────────────────────────────────────────────────
@@ -2163,6 +2197,7 @@ async function importarExcelCompleto(input){
         valor:header.findIndex(h=>h.includes('valor')),
         observaciones:header.findIndex(h=>h.includes('observaciones')),
         cc:header.findIndex(h=>h.includes('centro')),
+        area:header.findIndex(h=>h==='área'||h==='area'),
       };
       // El campo de nombre/descripción: primero busca Descripción (nuevo), luego Nombre (viejo)
       const colDesc=idx.descripcion>=0?idx.descripcion:idx.nombre;
@@ -2180,6 +2215,7 @@ async function importarExcelCompleto(input){
         const rowCC=idx.cc>=0?(ccIdDesdeTexto(row[idx.cc])||ccActivo):ccActivo;
         newInventario.push({
           cc:rowCC,
+          area:idx.area>=0?(AREAS.find(a=>a.toLowerCase()===String(row[idx.area]||'').trim().toLowerCase())||String(row[idx.area]||'').trim()):'',
           id:itemId,
           nombre:desc,
           codigo:idx.codigo>=0?String(row[idx.codigo]||'').trim():'',
@@ -2217,7 +2253,7 @@ async function importarExcelCompleto(input){
             cantidad:item.cantidad,disponible:item.disponible,
             stockMinimo:item.stockMinimo,proveedor:item.proveedor,
             valor:item.valor,observaciones:item.observaciones,
-            cc:item.cc
+            cc:item.cc,area:item.area||''
           });
         });
         await batch.commit();
@@ -2372,7 +2408,7 @@ async function crearDesdeCatalogo(herrId){
   const ya=inventario.find(i=>norm(i.nombre)===norm(src.nombre)&&norm(i.codigo)===norm(src.codigo));
   if(ya)return ya.id;
   const newItem={nombre:src.nombre||'',codigo:src.codigo||'',categoria:src.categoria||'Herramientas',marca:src.marca||'',
-    descripcion:src.descripcion||'',stockMinimo:src.stockMinimo||0,proveedor:src.proveedor||'',valor:src.valor||'',
+    descripcion:src.descripcion||'',stockMinimo:src.stockMinimo||0,proveedor:src.proveedor||'',valor:src.valor||'',area:src.area||'',
     cc:ccActivo,cantidad:0,disponible:0};
   if(src.fotoArticulo)newItem.fotoArticulo=src.fotoArticulo;
   try{const ref=await db.collection('inventario').add(newItem);newItem.id=ref.id;}
@@ -2495,7 +2531,7 @@ async function registrarTraslado(){
     const ref=db.collection('inventario').doc();
     destId=ref.id;
     nuevoDest={nombre:item.nombre||'',codigo:item.codigo||'',categoria:item.categoria||'Herramientas',marca:item.marca||'',descripcion:item.descripcion||'',
-      stockMinimo:item.stockMinimo||0,proveedor:item.proveedor||'',valor:item.valor||'',observaciones:item.observaciones||'',
+      stockMinimo:item.stockMinimo||0,proveedor:item.proveedor||'',valor:item.valor||'',observaciones:item.observaciones||'',area:item.area||'',
       cc:destino,cantidad:cant,disponible:cant};
     if(item.fotoArticulo)nuevoDest.fotoArticulo=item.fotoArticulo;
     batch.set(ref,nuevoDest);
@@ -2790,6 +2826,11 @@ function selectAcItem(id,nombre,inputId,listId,hiddenId){
   document.getElementById(inputId).value=nombre;
   document.getElementById(hiddenId).value=id;
   document.getElementById(listId).classList.remove('open');
+  if(inputId==='entBuscar'||inputId==='lotBuscar'){
+    const src=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
+    const sel=document.getElementById(inputId==='entBuscar'?'entArea':'lotAreaItem');
+    if(sel)sel.value=(src&&src.area)||'';
+  }
   if(inputId==='entBuscar'){
     const item=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
     if(item){
@@ -2828,7 +2869,9 @@ async function guardarNuevoItem(){
   const marca=document.getElementById('nuevaMarca').value.trim();
   const descripcion=document.getElementById('nuevaDesc').value.trim();
   if(!nombre){alert('El nombre es obligatorio');return;}
-  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo};
+  const area=document.getElementById('nuevoArea').value;
+  if(!area){alert('Selecciona el área de la empresa a la que pertenece el artículo');return;}
+  const newItem={nombre,categoria,codigo,marca,descripcion,cantidad:0,disponible:0,cc:ccActivo,area};
   try{
     const ref=await db.collection('inventario').add(newItem);
     newItem.id=ref.id;
@@ -2841,6 +2884,8 @@ async function guardarNuevoItem(){
   document.getElementById('entCodigo').value=codigo;
   document.getElementById('entMarca').value=marca;
   document.getElementById('entDesc').value=descripcion;
+  document.getElementById('entArea').value=area;
+  document.getElementById('nuevoArea').value='';
   alert('✅ Artículo agregado: '+nombre);
 }
 

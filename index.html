@@ -659,6 +659,11 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <div class="fg" style="flex:1"><label>Proveedor</label><input type="text" id="editProv"/></div>
         <div class="fg" style="flex:1"><label>Valor unitario</label><input type="number" id="editValor" min="0"/></div>
       </div>
+      <div id="editHistWrap" style="display:none" class="fg">
+        <label>Precios de compras registradas</label>
+        <div style="font-size:10px;color:var(--tx3);margin-bottom:6px">Si un precio quedó mal en una entrada, corrígelo aquí.</div>
+        <div id="editHistPrecios"></div>
+      </div>
       <div class="fg"><label>Stock mínimo</label><input type="number" id="editStockMin" min="0"/></div>
       <div class="fg"><label>Observaciones</label><textarea id="editObs" rows="2" style="resize:none"></textarea></div>
       <div class="fg"><label>Foto del artículo</label>
@@ -1011,9 +1016,9 @@ function showItemDetail(id,desdeModal){
 // ---- PRECIOS ----
 function numValor(v){const n=parseFloat(String(v==null?'':v).replace(/[^0-9.,-]/g,'').replace(/\./g,'').replace(',','.'));return isNaN(n)?0:n;}
 function fmtCOP(v){const n=numValor(v);return n?'$'+n.toLocaleString('es-CO',{maximumFractionDigits:0}):'—';}
-function historialPrecios(item){
+function historialPrecios(item,max=6){
   return movimientosAll.filter(m=>m.tipo==='entrada'&&!m.anulado&&m.herrId===item.id&&numValor(m.valor)>0)
-    .sort((a,b)=>String(b.fechaIngreso||b.fecha).localeCompare(String(a.fechaIngreso||a.fecha))).slice(0,6);
+    .sort((a,b)=>String(b.fechaIngreso||b.fecha).localeCompare(String(a.fechaIngreso||a.fecha))||String(b.fecha).localeCompare(String(a.fecha))).slice(0,max);
 }
 // ---- EDITAR ARTÍCULO ----
 let editQuitarFoto=false,editQuitarFactura=false;
@@ -1038,6 +1043,14 @@ function abrirEdicionItem(id){
   const sel=document.getElementById('editCategoria');
   if(item.categoria&&![...sel.options].some(o=>o.value===item.categoria)){const o=document.createElement('option');o.value=o.textContent=item.categoria;sel.appendChild(o);}
   sel.value=item.categoria||'Otra';
+  // historial de precios editable
+  const hist=historialPrecios(item,20);
+  document.getElementById('editHistWrap').style.display=hist.length?'block':'none';
+  document.getElementById('editHistPrecios').innerHTML=hist.map(m=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+      <div style="flex:1;min-width:0;font-size:11px;color:var(--tx2)">${m.fechaIngreso||(m.fecha||'').split('T')[0]}${m.proveedor?' · '+m.proveedor:''} · ${m.cantidad} und.</div>
+      <input type="number" min="0" data-mov="${m.id}" data-orig="${numValor(m.valor)}" value="${numValor(m.valor)}" style="width:110px;padding:6px;border:1px solid var(--br);border-radius:7px;font-size:12px"/>
+    </div>`).join('');
+  document.getElementById('editValor').dataset.orig=String(numValor(item.valor));
   // foto actual
   const img=document.getElementById('prevEditFoto'),box=document.getElementById('pbEditFoto');
   box.querySelector('input').value='';
@@ -1091,6 +1104,22 @@ async function guardarEdicionItem(){
   }
   if(fac){upd.facturaCompraId=fac.id;upd.facturaCompraNombre=fac.nombre;}
   else if(editQuitarFactura){upd.facturaCompraId=firebase.firestore.FieldValue.delete();upd.facturaCompraNombre=firebase.firestore.FieldValue.delete();}
+  // correcciones al historial de precios (se actualiza el valor en cada entrada corregida)
+  const cambiosHist=[...document.querySelectorAll('#editHistPrecios input[data-mov]')]
+    .filter(inp=>numValor(inp.value)!==numValor(inp.dataset.orig)&&numValor(inp.value)>0);
+  for(const inp of cambiosHist){
+    const mov=movimientosAll.find(m=>m.id===inp.dataset.mov);if(!mov)continue;
+    const nuevo=String(numValor(inp.value));
+    try{
+      await db.collection('movimientos').doc(mov.id).update({valor:nuevo,valorAnterior:mov.valor,valorCorregidoPor:currentUser.email,valorCorregidoFecha:new Date().toISOString()});
+      mov.valorAnterior=mov.valor;mov.valor=nuevo;
+    }catch(e){alert('No se pudo corregir el precio de la entrada del '+(mov.fechaIngreso||'')+': '+e.message);}
+  }
+  // Si no tocaste el valor unitario pero corregiste la última compra, el artículo toma ese precio
+  if(cambiosHist.length&&numValor(upd.valor)===numValor(document.getElementById('editValor').dataset.orig)){
+    const ultima=historialPrecios(item,1)[0];
+    if(ultima)upd.valor=String(numValor(ultima.valor));
+  }
   try{await db.collection('inventario').doc(id).update(upd);}
   catch(e){btn.innerHTML='✓ Guardar cambios';btn.disabled=false;alert('No se pudieron guardar los cambios: '+e.message);return;}
   // actualizar en memoria

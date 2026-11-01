@@ -290,7 +290,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
               <div style="font-size:9px;color:var(--tx3);margin-bottom:6px">Si varios artículos tienen el mismo N° de factura, basta con adjuntarla una vez.</div>
             </div>
             <div style="display:flex;gap:6px;margin-bottom:6px">
-              <input type="number" id="lotCantItem" value="1" min="1" style="width:70px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+              <input type="number" id="lotCantItem" value="1" min="1" title="Cantidad" style="width:60px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+              <input type="number" id="lotValorItem" min="0" placeholder="Valor unit. $" style="width:110px;min-width:0;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px"/>
               <button onclick="agregarItemLote()" style="flex:1;padding:8px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar</button>
             </div>
           </div>
@@ -988,7 +989,11 @@ function showItemDetail(id,desdeModal){
       <div class="detail-row"><span class="detail-key">Marca</span><span class="detail-val">${item.marca||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Categoría</span><span class="detail-val">${item.categoria||'—'}</span></div>
       <div class="detail-row"><span class="detail-key">Descripción</span><span class="detail-val" style="text-align:right;font-size:10px">${item.descripcion||'—'}</span></div>
+      <div class="detail-row"><span class="detail-key">Valor unitario</span><span class="detail-val" style="font-weight:800">${fmtCOP(item.valor)}</span></div>
+      ${numValor(item.valor)?`<div class="detail-row"><span class="detail-key">Valor total (${item.cantidad} und.)</span><span class="detail-val">${fmtCOP(numValor(item.valor)*(item.cantidad||0))}</span></div>`:''}
+      <div class="detail-row"><span class="detail-key">Proveedor</span><span class="detail-val">${item.proveedor||'—'}</span></div>
     </div>
+    ${(()=>{const h=historialPrecios(item);return h.length?`<div class="card" style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--tx2);margin-bottom:4px">HISTORIAL DE PRECIOS DE COMPRA</div>${h.map(m=>`<div class="detail-row"><span class="detail-key">${m.fechaIngreso||(m.fecha||'').split('T')[0]}${m.proveedor?' · '+m.proveedor:''}</span><span class="detail-val">${fmtCOP(m.valor)}</span></div>`).join('')}</div>`:'';})()}
     <div class="stat-grid" style="margin-bottom:8px">
       <div class="stat"><div class="stat-n">${item.cantidad}</div><div class="stat-l">Total</div></div>
       <div class="stat"><div class="stat-n" style="color:${item.disponible===0?'var(--rd)':'var(--gr)'}">${item.disponible}</div><div class="stat-l">Disponible</div></div>
@@ -1003,6 +1008,13 @@ function showItemDetail(id,desdeModal){
   else openModal('modalItemDetail');
 }
 
+// ---- PRECIOS ----
+function numValor(v){const n=parseFloat(String(v==null?'':v).replace(/[^0-9.,-]/g,'').replace(/\./g,'').replace(',','.'));return isNaN(n)?0:n;}
+function fmtCOP(v){const n=numValor(v);return n?'$'+n.toLocaleString('es-CO',{maximumFractionDigits:0}):'—';}
+function historialPrecios(item){
+  return movimientosAll.filter(m=>m.tipo==='entrada'&&!m.anulado&&m.herrId===item.id&&numValor(m.valor)>0)
+    .sort((a,b)=>String(b.fechaIngreso||b.fecha).localeCompare(String(a.fechaIngreso||a.fecha))).slice(0,6);
+}
 // ---- EDITAR ARTÍCULO ----
 let editQuitarFoto=false,editQuitarFactura=false;
 function facturasDeItem(item){
@@ -1596,7 +1608,8 @@ function agregarItemLote(){
   if(existIdx>=0){entLoteItems[existIdx].cantidad+=cant;}
   else{
     const inv=String(id).startsWith('cat:')?inventarioAll.find(i=>i.id===id.slice(4)):inventario.find(i=>i.id===id);
-    const nuevo={herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:''};
+    const nuevo={herrId:id,herrNombre:nombre,cantidad:cant,categoria:inv?inv.categoria:'',valor:document.getElementById('lotValorItem').value.trim()};
+    document.getElementById('lotValorItem').value='';
     if(lotModoFactura==='varias'){
       nuevo.factura=document.getElementById('lotItemFact').value.trim();
       nuevo.proveedor=document.getElementById('lotItemProv').value.trim();
@@ -1622,7 +1635,7 @@ function renderLoteItems(){
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f5f5">
       <div style="flex:1">
         <div style="font-size:11px;font-weight:700">${it.herrNombre}</div>
-        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.${lotModoFactura==='varias'?(it.factura?' · Fact. '+it.factura:' · Sin N° factura')+(it.archivo?' · 📄':''):''}</div>
+        <div style="font-size:9px;color:var(--tx3)">${it.categoria} · ${it.cantidad} unid.${numValor(it.valor)?' · '+fmtCOP(it.valor)+' c/u':''}${lotModoFactura==='varias'?(it.factura?' · Fact. '+it.factura:' · Sin N° factura')+(it.archivo?' · 📄':''):''}</div>
       </div>
       <button onclick="removeItemLote(${i})" style="padding:4px 8px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">✕</button>
     </div>`).join('');
@@ -1663,7 +1676,7 @@ async function registrarEntradaLote(){
     it.herrId=await crearDesdeCatalogo(it.herrId);
     const data={
       tipo:'entrada',herrId:it.herrId,herrNombre:it.herrNombre,nombre:it.herrNombre,
-      categoria:it.categoria,cantidad:it.cantidad,
+      categoria:it.categoria,cantidad:it.cantidad,valor:it.valor||'',
       proveedor:lotModoFactura==='una'?proveedor:(it.proveedor||''),
       factura:lotModoFactura==='una'?factura:(it.factura||''),
       fechaIngreso:fecha,
@@ -1677,7 +1690,10 @@ async function registrarEntradaLote(){
       const item=inventario.find(i=>i.id===it.herrId);
       if(item){
         item.cantidad+=it.cantidad;item.disponible+=it.cantidad;
-        try{await db.collection('inventario').doc(it.herrId).update({cantidad:item.cantidad,disponible:item.disponible});}catch(e){}
+        const upd={cantidad:item.cantidad,disponible:item.disponible};
+        if(numValor(data.valor)>0){upd.valor=data.valor;item.valor=data.valor;}
+        if(String(data.proveedor||'').trim()){upd.proveedor=data.proveedor;item.proveedor=data.proveedor;}
+        try{await db.collection('inventario').doc(it.herrId).update(upd);}catch(e){}
       }
     }
     saved++;
@@ -1758,6 +1774,9 @@ async function registrarEntrada(){
       item.cantidad+=cant;item.disponible+=cant;
       const upd={cantidad:item.cantidad,disponible:item.disponible};
       if(fotoArticulo){upd.fotoArticulo=fotoArticulo;item.fotoArticulo=fotoArticulo;}
+      // El precio y el proveedor de la última compra pasan a ser los actuales del artículo
+      if(numValor(data.valor)>0){upd.valor=data.valor;item.valor=data.valor;}
+      if(String(data.proveedor||'').trim()){upd.proveedor=data.proveedor;item.proveedor=data.proveedor;}
       try{await db.collection('inventario').doc(finalHerrId).update(upd);}catch(e){}
     }
   }

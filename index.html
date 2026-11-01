@@ -1274,7 +1274,8 @@ function showTrabajadorDetail(cedula){
       const fecha=i.fechaSalida||i.fecha?new Date(i.fechaSalida||i.fecha).toLocaleDateString('es-CO'):'—';
       div.innerHTML='<div class="pend-name">'+(i.herrNombre||'—')+'</div>'
         +'<div class="pend-det">'+(i.cantPendiente)+' unid. · '+(i.categoria||'')+'</div>'
-        +'<div class="pend-days">📤 Salida: '+fecha+'</div>';
+        +'<div class="pend-days">📤 Salida: '+fecha+'</div>'
+        +obsHtml(i.observaciones);
       const btnWrap=document.createElement('div');
       btnWrap.style.cssText='display:flex;gap:6px;margin-top:7px';
       if(i.foto){const b=document.createElement('button');b.textContent='📷 Ver foto entrega';b.style.cssText='flex:1;padding:6px;background:var(--bll);border:1px solid #B5D4F4;border-radius:6px;font-size:10px;font-weight:700;color:var(--bl);cursor:pointer';b.addEventListener('click',()=>verImagen(i.foto,false));btnWrap.appendChild(b);}
@@ -2799,6 +2800,8 @@ function selectAcItem(id,nombre,inputId,listId,hiddenId){
   }
 }
 
+function escHtml(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function obsHtml(o){const t=String(o||'').trim();return t?'<div style="font-size:10px;color:var(--tx);background:var(--bg);border-radius:5px;padding:4px 7px;margin-top:4px;white-space:pre-wrap">📝 '+escHtml(t)+'</div>':'';}
 function showAsigPorItem(id,nombre){
   document.getElementById('itemSearchAsig').value=nombre;
   document.getElementById('itemAcAsig').classList.remove('open');
@@ -2808,7 +2811,7 @@ function showAsigPorItem(id,nombre){
     return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
   }).filter(s=>s.cantPendiente>0);
   document.getElementById('itemAsigResult').innerHTML=asig.length?
-    '<div class="sec-title">'+asig.length+' asignación(es) activa(s)</div>'+asig.map(m=>'<div class="pend"><div class="pend-name">'+(m.trabajador||'—')+'</div><div class="pend-det">CC '+(m.cedula||'—')+' · '+(m.obra||'')+' · '+m.cantPendiente+' unid.</div><div class="pend-days">📅 '+(m.fechaSalida||m.fecha?new Date(m.fechaSalida||m.fecha).toLocaleDateString('es-CO'):'—')+'</div></div>').join(''):
+    '<div class="sec-title">'+asig.length+' asignación(es) activa(s)</div>'+asig.map(m=>'<div class="pend"><div class="pend-name">'+(m.trabajador||'—')+'</div><div class="pend-det">CC '+(m.cedula||'—')+' · '+(m.obra||'')+' · '+m.cantPendiente+' unid.</div><div class="pend-days">📅 '+(m.fechaSalida||m.fecha?new Date(m.fechaSalida||m.fecha).toLocaleDateString('es-CO'):'—')+'</div>'+obsHtml(m.observaciones)+'</div>').join(''):
     '<div class="no-results">Nadie tiene este artículo asignado</div>';
 }
 

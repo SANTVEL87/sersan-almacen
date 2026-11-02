@@ -1057,7 +1057,7 @@ function filterInv(q){renderInv(inventario);}
 
 function showItemDetail(id,desdeModal){
   const item=inventario.find(i=>i.id===id);if(!item)return;
-  const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id&&(m.cantPendiente||0)>0);
+  const asig=salidasPendientes(movimientos.filter(m=>m.herrId===id));
   const estado=item.disponible===0?'<span style="color:var(--rd);font-weight:700">AGOTADO</span>':item.disponible<=2?'<span style="color:var(--yl2);font-weight:700">STOCK BAJO</span>':'<span style="color:var(--gr);font-weight:700">DISPONIBLE</span>';
   const body=document.getElementById('modalItemBody');
   body.innerHTML=`
@@ -1222,14 +1222,14 @@ function loadDashboard(){
   loadPendientes();
 }
 async function loadPendientes(){
-  const pends=movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).slice(0,5);
-  document.getElementById('pendList').innerHTML=pends.length?pends.map(p=>`<div class="pend"><div class="pend-name">${p.trabajador||'—'}</div><div class="pend-det">${p.herrNombre||''} · ${p.obra||''} · ${p.cantPendiente||p.cantidad} unid.</div><div class="pend-days">📅 ${p.fechaSalida||p.fecha?new Date(p.fechaSalida||p.fecha).toLocaleDateString('es-CO'):'—'}</div></div>`).join(''):'<div class="no-results">Sin pendientes 👍</div>';
+  const pends=salidasPendientes(movimientos).slice(0,5);
+  document.getElementById('pendList').innerHTML=pends.length?pends.map(p=>`<div class="pend"><div class="pend-name">${p.trabajador||'—'}</div><div class="pend-det">${p.herrNombre||''} · ${p.obra||''} · ${p.cantPendiente} unid.</div><div class="pend-days">📅 ${p.fechaSalida||p.fecha?new Date(p.fechaSalida||p.fecha).toLocaleDateString('es-CO'):'—'}</div></div>`).join(''):'<div class="no-results">Sin pendientes 👍</div>';
 }
 
 // ---- MOVIMIENTOS ----
 async function loadMovimientos(){
   try{
-    const snap=await db.collection('movimientos').orderBy('fecha','desc').limit(100).get();
+    const snap=await db.collection('movimientos').orderBy('fecha','desc').get();
     movimientosAll=snap.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){movimientosAll=[];}
   movimientos=movimientosAll.filter(movVisibleEnCC);
@@ -1278,13 +1278,10 @@ function filterHistCat(btn,cat){currentHistCat=cat;document.getElementById('scHi
 // ---- ASIGNADOS ----
 function loadTrabajadores(){
   const map={};
-  movimientos.filter(m=>m.tipo==='salida').forEach(m=>{
+  salidasPendientes(movimientos).forEach(m=>{
     const k=m.cedula||'';if(!k)return;
     if(!map[k])map[k]={nombre:m.trabajador||'—',cedula:k,email:m.email||'',items:[],obra:m.obra||''};
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===k&&(d.salidaRef===m.id||d.herrId===m.herrId));
-    const devTotal=devs.reduce((s,d)=>s+(d.cantidad||0),0);
-    const pendiente=Math.max(0,(m.cantPendiente!==undefined?m.cantPendiente:m.cantidad||0)-devTotal);
-    if(pendiente>0) map[k].items.push({...m,cantPendiente:pendiente});
+    map[k].items.push(m);
   });
   const workers=Object.values(map).filter(t=>t.items.length>0);
   const list=document.getElementById('trabList');
@@ -1321,12 +1318,8 @@ function showTrabajadorDetail(cedula){
   const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula);
   if(!salidas.length)return;
   const trab=salidas[0];
-  const items=salidas.map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal)};
-  }).filter(s=>s.cantPendiente>0);
-  const devoluciones=movimientos.filter(m=>m.tipo==='devolucion'&&m.cedula===cedula);
+  const items=salidasPendientes(salidas);
+  const devoluciones=movimientos.filter(m=>m.tipo==='devolucion'&&m.cedula===cedula&&!m.anulado);
   const tienePendiente=items.length>0;
   document.getElementById('modalTrabNombre').textContent=trab.trabajador||'Trabajador';
   const body=document.getElementById('modalTrabBody');
@@ -1390,13 +1383,7 @@ function showTrabajadorDetail(cedula){
 function buscarDevPorCedula(){
   const cedula=document.getElementById('devCedBuscar').value.trim();
   if(!cedula){alert('Ingresa la cédula');return;}
-  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula).map(s=>{
-    // Match devoluciones by salidaRef (exact match) or by herrId+cedula
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    const pendiente=Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal);
-    return {...s,cantPendiente:pendiente};
-  }).filter(s=>s.cantPendiente>0);
+  const salidas=salidasPendientes(movimientos.filter(m=>m.cedula===cedula));
   const trabInfo=document.getElementById('devTrabInfo');
   const itemsList=document.getElementById('devItemsList');
   const devForm=document.getElementById('devForm');
@@ -1426,7 +1413,7 @@ function buscarDevPorCedula(){
       +'<div class="pend-days">📤 Salió: '+_fecha+'</div>'
       +'<div style="font-size:10px;font-weight:700;color:var(--bl);margin-top:4px">Toca aquí para registrar devolución ›</div>';
     _div.addEventListener('click',function(){
-      seleccionarDevItem(s.id,s.herrNombre||'',s.cantPendiente||s.cantidad||0,s.cedula||cedula,s.trabajador||'');
+      seleccionarDevItem(s.id,s.herrNombre||'',s.cantPendiente,s.cedula||cedula,s.trabajador||'');
     });
     _devContainer.appendChild(_div);
   });
@@ -1470,13 +1457,7 @@ function resetDevLoteUI(){
 function buscarDevLote(){
   const cedula=document.getElementById('devLoteCed').value.trim();
   if(!cedula){alert('Ingresa la cédula');return;}
-  // Mismo cálculo de pendientes que la devolución uno a uno
-  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula).map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    const pendiente=Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal);
-    return {...s,cantPendiente:pendiente};
-  }).filter(s=>s.cantPendiente>0);
+  const salidas=salidasPendientes(movimientos.filter(m=>m.cedula===cedula));
   resetDevLoteUI();
   if(!salidas.length){
     const otros=pendientesOtrosCC(cedula);
@@ -1534,7 +1515,10 @@ async function registrarDevolucionLote(){
   if(!devLoteTrab){alert('Busca primero al trabajador por cédula');return;}
   const sel=devLoteItems.filter(i=>i.sel);
   if(!sel.length){alert('Marca al menos un artículo para devolver');return;}
+  const pmActual=pendMap();
   for(const it of sel){
+    const pr=pmActual.get(it.salidaId);if(pr!==undefined)it.cantPend=pr;
+    if(!it.cantPend){alert('"'+it.nombre+'" ya no tiene unidades pendientes. Vuelve a buscar la cédula.');return;}
     if(!it.cant||it.cant<1){alert('La cantidad de "'+it.nombre+'" debe ser mayor a 0');return;}
     if(it.cant>it.cantPend){alert('No puedes devolver más de '+it.cantPend+' unidad(es) de "'+it.nombre+'"');return;}
   }
@@ -1568,19 +1552,8 @@ async function registrarDevolucionLote(){
         item.disponible=Math.min(item.cantidad,(item.disponible||0)+it.cant);
         try{await db.collection('inventario').doc(item.id).update({disponible:item.disponible});}catch(e){console.log('Stock update error',e);}
       }
-      // cantPendiente de la salida original
-      if(it.salidaId&&navigator.onLine){
-        try{
-          const salidaRef=db.collection('movimientos').doc(it.salidaId);
-          const salidaDoc=await salidaRef.get();
-          if(salidaDoc.exists){
-            const nuevoPend=Math.max(0,(salidaDoc.data().cantPendiente||salidaDoc.data().cantidad||0)-it.cant);
-            await salidaRef.update({cantPendiente:nuevoPend});
-            const mov=movimientos.find(m=>m.id===it.salidaId);
-            if(mov)mov.cantPendiente=nuevoPend;
-          }
-        }catch(e){console.log('CantPendiente update error',e);}
-      }
+      // Pendiente informativo de la salida original
+      await sincronizarPendienteSalida(it.salidaId);
       saved++;
     }
   }finally{
@@ -2105,6 +2078,10 @@ async function registrarDevolucion(){
   const fecha=document.getElementById('devFecha').value;
   const firma=getSigData('sigDev');
   if(cant<1){alert('Cantidad debe ser mayor a 0');return;}
+  // Revalidar contra el pendiente real en este momento
+  const pendReal=pendMap().get(devSelected.movId);
+  if(pendReal!==undefined)devSelected.cantPend=pendReal;
+  if(!devSelected.cantPend){alert('Este artículo ya no tiene unidades pendientes.');return;}
   if(cant>devSelected.cantPend){alert('No puedes devolver más de '+devSelected.cantPend+' unidad(es) pendientes');return;}
   if(!fecha){alert('Ingresa la fecha de devolución');return;}
   if(!firma){alert('Se requiere la firma de quien devuelve');return;}
@@ -2128,20 +2105,8 @@ async function registrarDevolucion(){
     item.disponible=Math.min(item.cantidad, item.disponible+cant);
     try{await db.collection('inventario').doc(item.id).update({disponible:item.disponible});}catch(e){console.log('Stock update error',e);}
   }
-  // Update cantPendiente on the original salida in Firestore
-  if(devSelected.movId&&navigator.onLine){
-    try{
-      const salidaRef=db.collection('movimientos').doc(devSelected.movId);
-      const salidaDoc=await salidaRef.get();
-      if(salidaDoc.exists){
-        const nuevoPend=Math.max(0,(salidaDoc.data().cantPendiente||salidaDoc.data().cantidad||0)-cant);
-        await salidaRef.update({cantPendiente:nuevoPend});
-        // Update local movimientos array
-        const mov=movimientos.find(m=>m.id===devSelected.movId);
-        if(mov)mov.cantPendiente=nuevoPend;
-      }
-    }catch(e){console.log('CantPendiente update error',e);}
-  }
+  // Actualizar el pendiente informativo de la salida original
+  await sincronizarPendienteSalida(devSelected.movId);
   btn.innerHTML='✓ Confirmar devolución';btn.disabled=false;
   document.getElementById('succH').textContent='¡Devolución registrada!';
   document.getElementById('succSub').textContent=cant+' × '+devSelected.nombre;
@@ -2213,7 +2178,8 @@ function exportarExcel(){
   // ── HOJA 1: INVENTARIO ──────────────────────────────────────────────────────
   // Calcular unidades asignadas por artículo (salidas con cantPendiente > 0)
   const asignadosPorId={};
-  movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).forEach(m=>{
+  const _pmXls=pendMap();
+  salidasPendientes(movimientos,_pmXls).forEach(m=>{
     if(m.herrId) asignadosPorId[m.herrId]=(asignadosPorId[m.herrId]||0)+(m.cantPendiente||0);
   });
 
@@ -2282,12 +2248,14 @@ function exportarExcel(){
   const salData=[salHeaders];
   movimientos.filter(m=>m.tipo==='salida').forEach((m,i)=>{
     // Buscar devoluciones asociadas a esta salida
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&(d.salidaRef===m.id||(d.cedula===m.cedula&&d.herrId===m.herrId)));
-    const cantDev=devs.reduce((s,d)=>s+(d.cantidad||0),0);
-    const cantPend=m.cantPendiente!==undefined?m.cantPendiente:Math.max(0,(m.cantidad||0)-cantDev);
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&!d.anulado&&(d.salidaRef===m.id||(!d.salidaRef&&d.cedula===m.cedula&&d.herrId===m.herrId)));
+    const cantBase=parseInt(m.cantOriginal!=null?m.cantOriginal:m.cantidad)||0;
+    const cantPend=m.anulado?0:(_pmXls.get(m.id)||0);
+    const cantDev=m.anulado?0:Math.max(0,cantBase-cantPend);
     const ultimaDev=devs.length?devs.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))[0]:null;
     let estado='Pendiente';
-    if(cantPend===0) estado='Devuelto Completo';
+    if(m.anulado) estado='Anulada';
+    else if(cantPend===0) estado='Devuelto Completo';
     else if(cantDev>0) estado='Devuelto Parcial';
     salData.push([
       i+1,
@@ -2317,7 +2285,7 @@ function exportarExcel(){
   const asigHeaders=['Artículo','Código','Trabajador','Cédula','Cant. Pendiente','Fecha Salida','Días Asignado','Centro de Costos'];
   const asigData=[asigHeaders];
   const hoy=new Date();
-  movimientos.filter(m=>m.tipo==='salida'&&(m.cantPendiente||0)>0).forEach(m=>{
+  salidasPendientes(movimientos,_pmXls).forEach(m=>{
     const fechaSal=m.fechaSalida?new Date(m.fechaSalida):new Date(m.fecha);
     const dias=isNaN(fechaSal)?'':Math.floor((hoy-fechaSal)/(1000*60*60*24));
     asigData.push([
@@ -2537,6 +2505,10 @@ function renderSolicitudes(){
 }
 async function aprobarAnulacion(solId){
   const sol=solicitudesPendientes.find(s=>s.id===solId);if(!sol)return;
+  if(sol.tipo==='salida'){
+    const devsActivas=movimientosAll.filter(d=>d.tipo==='devolucion'&&!d.anulado&&d.salidaRef===sol.movId);
+    if(devsActivas.length){alert('Esta salida ya tiene '+devsActivas.length+' devolución(es) registradas.\nPrimero anula esas devoluciones y luego la salida, para no descuadrar el stock.');return;}
+  }
   if(!confirm('¿Aprobar la anulación de "'+sol.herrNombre+' × '+sol.cantidad+'"?\nEsto revertirá el stock automáticamente.'))return;
   try{
     await db.collection('movimientos').doc(sol.movId).update({
@@ -2568,6 +2540,7 @@ async function aprobarAnulacion(solId){
     });
     const mov=movimientosAll.find(m=>m.id===sol.movId);
     if(mov){mov.anulado=true;mov.motivoAnulacion=sol.motivo+' — '+sol.detalle;}
+    if(mov&&mov.tipo==='devolucion'&&mov.salidaRef)await sincronizarPendienteSalida(mov.salidaRef);
     solicitudesPendientes=solicitudesPendientes.filter(s=>s.id!==solId);
     renderSolicitudes();renderHistorial(movimientos);renderInv(inventario);loadDashboard();
     alert('Anulación aprobada y stock revertido.');
@@ -2618,15 +2591,53 @@ async function crearDesdeCatalogo(herrId){
 }
 function movVisibleEnCC(m){return (m.cc||CC_DEFAULT)===ccActivo||(m.tipo==='traslado'&&m.ccDestino===ccActivo);}
 function addMovLocal(m){movimientosAll.unshift(m);if(movVisibleEnCC(m))movimientos.unshift(m);}
+
+// ---- PENDIENTES: fuente única de verdad ----
+// Pendiente de una salida = cantidad que salió − devoluciones (no anuladas) de esa salida.
+// Se calcula siempre desde los movimientos; el campo cantPendiente guardado en Firestore es solo informativo.
+function _fechaMov(m){return new Date(m.fechaSalida||m.fechaDevolucion||m.fecha||0).getTime()||0;}
+function pendMap(){
+  const map=new Map(),todasSalidas=new Set();
+  const salidas=movimientosAll.filter(m=>m.tipo==='salida');
+  salidas.forEach(s=>{todasSalidas.add(s.id);if(!s.anulado)map.set(s.id,Math.max(0,parseInt(s.cantOriginal!=null?s.cantOriginal:s.cantidad)||0));});
+  const sueltas=[];
+  movimientosAll.forEach(d=>{
+    if(d.tipo!=='devolucion'||d.anulado)return;
+    const c=parseInt(d.cantidad)||0;
+    if(d.salidaRef&&map.has(d.salidaRef)){map.set(d.salidaRef,Math.max(0,map.get(d.salidaRef)-c));}
+    else if(d.salidaRef&&todasSalidas.has(d.salidaRef)){/* devolución de una salida anulada: no afecta otras */}
+    else sueltas.push(d);
+  });
+  // Devoluciones sin enlace (registros antiguos o salidas creadas sin conexión):
+  // se descuentan de la salida más antigua del mismo trabajador y artículo, sin pasarse.
+  sueltas.sort((a,b)=>_fechaMov(a)-_fechaMov(b)).forEach(d=>{
+    let rest=parseInt(d.cantidad)||0;
+    const cands=salidas.filter(s=>map.has(s.id)&&s.cedula===d.cedula&&(d.herrId?s.herrId===d.herrId:(s.herrNombre||s.nombre)===(d.herrNombre||d.nombre)))
+      .sort((a,b)=>_fechaMov(a)-_fechaMov(b));
+    for(const s of cands){if(rest<=0)break;const p=map.get(s.id);const q=Math.min(p,rest);map.set(s.id,p-q);rest-=q;}
+  });
+  return map;
+}
+// Devuelve las salidas de "lista" que siguen pendientes, con cantPendiente ya calculado
+function salidasPendientes(lista,pm){
+  pm=pm||pendMap();
+  return lista.filter(m=>m.tipo==='salida'&&!m.anulado).map(s=>({...s,cantPendiente:pm.get(s.id)||0})).filter(s=>s.cantPendiente>0);
+}
+// Guarda el pendiente recalculado en la salida (informativo). Sin conexión queda en cola de Firestore.
+async function sincronizarPendienteSalida(salidaId){
+  if(!salidaId)return;
+  const nuevo=pendMap().get(salidaId);if(nuevo===undefined)return;
+  const mov=movimientosAll.find(m=>m.id===salidaId);if(mov)mov.cantPendiente=nuevo;
+  if(String(salidaId)===String(mov&&mov._lid))return; // salida aún en cola local
+  try{
+    const p=db.collection('movimientos').doc(salidaId).update({cantPendiente:nuevo});
+    if(navigator.onLine)await p;else p.catch(()=>{});
+  }catch(e){console.log('cantPendiente sync error',e);}
+}
 function addInvLocal(it){if(!it.cc)it.cc=ccActivo;inventarioAll.push(it);if(it.cc===ccActivo)inventario.push(it);}
 function pendientesOtrosCC(cedula){
   const ccs=new Set();
-  movimientosAll.filter(m=>m.tipo==='salida'&&m.cedula===cedula&&!m.anulado&&(m.cc||CC_DEFAULT)!==ccActivo).forEach(s=>{
-    const devs=movimientosAll.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    const pend=Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal);
-    if(pend>0)ccs.add(ccNombre(s.cc));
-  });
+  salidasPendientes(movimientosAll.filter(m=>m.cedula===cedula&&(m.cc||CC_DEFAULT)!==ccActivo)).forEach(s=>ccs.add(ccNombre(s.cc)));
   return [...ccs];
 }
 async function loadCentrosCostos(){
@@ -3047,11 +3058,7 @@ function obsHtml(o){const t=String(o||'').trim();return t?'<div style="font-size
 function showAsigPorItem(id,nombre){
   document.getElementById('itemSearchAsig').value=nombre;
   document.getElementById('itemAcAsig').classList.remove('open');
-  const asig=movimientos.filter(m=>m.tipo==='salida'&&m.herrId===id).map(s=>{
-    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===s.cedula&&d.herrId===id);
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantidad||0)-devTotal)};
-  }).filter(s=>s.cantPendiente>0);
+  const asig=salidasPendientes(movimientos.filter(m=>m.herrId===id));
   document.getElementById('itemAsigResult').innerHTML=asig.length?
     '<div class="sec-title">'+asig.length+' asignación(es) activa(s)</div>'+asig.map(m=>'<div class="pend"><div class="pend-name">'+(m.trabajador||'—')+'</div><div class="pend-det">CC '+(m.cedula||'—')+' · '+(m.obra||'')+' · '+m.cantPendiente+' unid.</div><div class="pend-days">📅 '+(m.fechaSalida||m.fecha?new Date(m.fechaSalida||m.fecha).toLocaleDateString('es-CO'):'—')+'</div>'+obsHtml(m.observaciones)+'</div>').join(''):
     '<div class="no-results">Nadie tiene este artículo asignado</div>';
@@ -3098,11 +3105,7 @@ function buscarPazSalvo(){
   const res=document.getElementById('pazResult');
   if(!salidas.length){res.innerHTML='<div class="card"><div style="font-size:12px;color:var(--tx2)">No se encontraron registros para la cédula <strong>'+cedula+'</strong></div></div>';return;}
   const trab=salidas[0];
-  const items=salidas.map(s=>{
-    const devs=movimientosAll.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
-    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
-    return {...s,cantPendiente:Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal)};
-  }).filter(s=>s.cantPendiente>0);
+  const items=salidasPendientes(salidas);
   if(items.length>0){
     res.innerHTML='<div class="alert"><div class="alert-name">⚠️ No puede recibir paz y salvo</div><div class="alert-sub">'+(trab.trabajador||'—')+' tiene '+items.length+' artículo(s) pendiente(s)</div></div>'
       +'<div class="sec-title">Pendientes:</div>'

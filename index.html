@@ -416,6 +416,14 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
       <!-- DEVOLUCIÓN -->
       <div id="tDev" style="display:none">
+        <!-- Toggle uno a uno / en lote -->
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button id="btnDevInd" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:8px;font-size:11px" onclick="setDevMode('individual')">👤 Uno a uno</button>
+          <button id="btnDevLote" class="btn" style="flex:1;padding:8px;font-size:11px" onclick="setDevMode('lote')">📦 En lote</button>
+        </div>
+
+        <!-- MODO UNO A UNO -->
+        <div id="devModoInd">
         <div class="fg"><label>Cédula del trabajador <span class="req-indicator">*</span></label>
           <div style="display:flex;gap:6px">
             <input type="text" id="devCedBuscar" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
@@ -460,6 +468,50 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <button class="btn" onclick="cancelarRegistro('tDev')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
           <button class="btn outline" onclick="cancelarDev()" style="font-size:11px">Cancelar</button>
         </div>
+        </div><!-- end devModoInd -->
+
+        <!-- MODO EN LOTE -->
+        <div id="devModoLote" style="display:none">
+          <div class="fg"><label>Cédula del trabajador <span class="req-indicator">*</span></label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="devLoteCed" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
+              <button onclick="buscarDevLote()" style="padding:8px 12px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Buscar</button>
+            </div>
+          </div>
+          <div id="devLoteTrabInfo" class="card" style="display:none;background:var(--bll)">
+            <div style="font-size:11px;color:var(--bl);font-weight:700">Trabajador encontrado:</div>
+            <div style="font-size:13px;font-weight:800;margin-top:2px" id="devLoteTrabNombre"></div>
+            <div style="font-size:10px;color:var(--tx2)" id="devLoteTrabCed"></div>
+          </div>
+          <div id="devLoteWrap" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;margin-bottom:6px">
+              <div class="sec-title" style="margin:0">Marca lo que devuelve</div>
+              <button id="devLoteBtnTodos" onclick="devLoteToggleTodos()" style="padding:5px 9px;background:var(--wh);border:1px solid var(--br);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">Quitar todos</button>
+            </div>
+            <div id="devLoteLista" style="background:var(--wh);border:1px solid var(--br);border-radius:9px;padding:4px 10px;margin-bottom:8px"></div>
+            <div id="devLoteResumen" style="font-size:11px;font-weight:700;color:var(--bl);margin-bottom:10px"></div>
+            <div class="fg"><label>Fecha de devolución <span class="req-indicator">*</span></label><input type="date" id="devLoteFecha"/></div>
+            <div class="fg"><label>Estado al regreso (aplica a todo el lote)</label>
+              <select id="devLoteEstado"><option>Bueno</option><option>Regular</option><option>Dañado</option></select>
+            </div>
+            <div class="fg"><label>Foto del lote (opcional)</label>
+              <div class="photo-box" id="pbDevLote">
+                <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevDevLote','pbDevLote')"/>
+                <span class="ico">📷</span><p>Foto de todo lo que devuelve</p>
+              </div>
+              <img id="prevDevLote" class="photo-preview"/>
+            </div>
+            <div class="fg"><label>Firma de quien devuelve <span class="req-indicator">*</span></label>
+              <div class="sig-wrap">
+                <div class="sig-header"><span>Firme aquí una sola vez</span><button class="sig-clear" onclick="clearSig('sigDevLote')">Borrar</button></div>
+                <canvas class="sig-pad" id="sigDevLote" width="440" height="110"></canvas>
+              </div>
+            </div>
+            <div class="fg"><label>Observaciones</label><textarea id="devLoteObs" rows="2" style="resize:none" placeholder="Estado, novedades..."></textarea></div>
+            <button class="btn primary" onclick="registrarDevolucionLote()">✓ Confirmar devolución en lote</button>
+          </div>
+          <button class="btn" onclick="cancelarRegistro('devModoLote')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
+        </div><!-- end devModoLote -->
       </div>
 
       <!-- BAJA DE EQUIPOS -->
@@ -851,7 +903,7 @@ async function initApp(){
     if(isAdmin){importArea.style.display='block';noImportMsg.style.display='none';}
     else{importArea.style.display='none';noImportMsg.style.display='block';}
   }
-  initSig('sigSal');initSig('sigDev');initSig('sigLis');
+  initSig('sigSal');initSig('sigDev');initSig('sigLis');initSig('sigDevLote');
   const hoy=new Date().toISOString().split('T')[0];
   setSalidaMode('individual');setEntradaMode('individual');
   document.getElementById('entFecha').value=hoy;
@@ -1399,6 +1451,154 @@ function cancelarDev(){
   clearSig('sigDev');
 }
 
+// ---- DEVOLUCIÓN EN LOTE ----
+let devLoteItems=[],devLoteTrab=null;
+function setDevMode(mode){
+  const isInd=mode==='individual';
+  document.getElementById('devModoInd').style.display=isInd?'block':'none';
+  document.getElementById('devModoLote').style.display=isInd?'none':'block';
+  const bi=document.getElementById('btnDevInd'),bl=document.getElementById('btnDevLote');
+  bi.style.background=isInd?'var(--bk)':'var(--wh)';bi.style.color=isInd?'var(--yl)':'var(--tx)';bi.style.borderColor=isInd?'var(--bk)':'var(--br)';
+  bl.style.background=isInd?'var(--wh)':'var(--bk)';bl.style.color=isInd?'var(--tx)':'var(--yl)';bl.style.borderColor=isInd?'var(--br)':'var(--bk)';
+  const f=document.getElementById('devLoteFecha');if(f&&!f.value)f.value=new Date().toISOString().split('T')[0];
+}
+function resetDevLoteUI(){
+  devLoteItems=[];devLoteTrab=null;
+  ['devLoteTrabInfo','devLoteWrap'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  const l=document.getElementById('devLoteLista');if(l)l.innerHTML='';
+}
+function buscarDevLote(){
+  const cedula=document.getElementById('devLoteCed').value.trim();
+  if(!cedula){alert('Ingresa la cédula');return;}
+  // Mismo cálculo de pendientes que la devolución uno a uno
+  const salidas=movimientos.filter(m=>m.tipo==='salida'&&m.cedula===cedula).map(s=>{
+    const devs=movimientos.filter(d=>d.tipo==='devolucion'&&d.cedula===cedula&&(d.salidaRef===s.id||d.herrId===s.herrId));
+    const devTotal=devs.reduce((sum,d)=>sum+(d.cantidad||0),0);
+    const pendiente=Math.max(0,(s.cantPendiente!==undefined?s.cantPendiente:s.cantidad||0)-devTotal);
+    return {...s,cantPendiente:pendiente};
+  }).filter(s=>s.cantPendiente>0);
+  resetDevLoteUI();
+  if(!salidas.length){
+    const otros=pendientesOtrosCC(cedula);
+    alert('No se encontraron artículos pendientes para la cédula '+cedula+' en '+ccNombre(ccActivo)+'.'+(otros.length?'\n\nTiene pendientes en: '+otros.join(', ')+'. Cambia de centro de costos para registrar la devolución.':''));
+    return;
+  }
+  devLoteTrab={cedula,nombre:salidas[0].trabajador||'—'};
+  devLoteItems=salidas.map(s=>({salidaId:s.id,herrId:s.herrId||'',nombre:s.herrNombre||'—',categoria:s.categoria||'',cantPend:parseInt(s.cantPendiente)||1,cant:parseInt(s.cantPendiente)||1,sel:true,fechaSalida:s.fechaSalida||s.fecha||''}));
+  document.getElementById('devLoteTrabNombre').textContent=devLoteTrab.nombre;
+  document.getElementById('devLoteTrabCed').textContent='CC '+cedula+' · '+devLoteItems.length+' artículo(s) pendientes';
+  document.getElementById('devLoteTrabInfo').style.display='block';
+  document.getElementById('devLoteWrap').style.display='block';
+  const f=document.getElementById('devLoteFecha');if(!f.value)f.value=new Date().toISOString().split('T')[0];
+  renderDevLote();
+}
+function renderDevLote(){
+  const cont=document.getElementById('devLoteLista');
+  cont.innerHTML='';
+  devLoteItems.forEach(function(it,idx){
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0';
+    const chk=document.createElement('input');chk.type='checkbox';chk.checked=it.sel;
+    chk.style.cssText='width:20px;height:20px;flex-shrink:0;accent-color:var(--bl)';
+    const info=document.createElement('div');info.style.cssText='flex:1;min-width:0;cursor:pointer';
+    const n=document.createElement('div');n.style.cssText='font-size:12px;font-weight:700';n.textContent=it.nombre;
+    const d=document.createElement('div');d.style.cssText='font-size:10px;color:var(--tx3)';
+    const fs=it.fechaSalida?new Date(it.fechaSalida).toLocaleDateString('es-CO'):'—';
+    d.textContent=it.cantPend+' pendiente(s) · Salió '+fs;
+    info.appendChild(n);info.appendChild(d);
+    const q=document.createElement('input');q.type='number';q.min='1';q.max=String(it.cantPend);q.value=String(it.cant);q.inputMode='numeric';
+    q.style.cssText='width:58px;padding:6px;border:1px solid var(--br);border-radius:6px;font-size:13px;text-align:center';
+    q.disabled=!it.sel;
+    chk.addEventListener('change',function(){it.sel=chk.checked;q.disabled=!it.sel;row.style.opacity=it.sel?'1':'0.5';actualizarResumenDevLote();});
+    info.addEventListener('click',function(){chk.checked=!chk.checked;chk.dispatchEvent(new Event('change'));});
+    q.addEventListener('input',function(){let v=parseInt(q.value)||0;if(v>it.cantPend){v=it.cantPend;q.value=String(v);}it.cant=v;actualizarResumenDevLote();});
+    row.style.opacity=it.sel?'1':'0.5';
+    row.appendChild(chk);row.appendChild(info);row.appendChild(q);
+    cont.appendChild(row);
+  });
+  actualizarResumenDevLote();
+}
+function actualizarResumenDevLote(){
+  const sel=devLoteItems.filter(i=>i.sel);
+  const unid=sel.reduce((s,i)=>s+(i.cant||0),0);
+  document.getElementById('devLoteResumen').textContent=sel.length+' de '+devLoteItems.length+' artículo(s) seleccionados · '+unid+' unidad(es)';
+  document.getElementById('devLoteBtnTodos').textContent=sel.length===devLoteItems.length?'Quitar todos':'Seleccionar todos';
+}
+function devLoteToggleTodos(){
+  const todos=devLoteItems.every(i=>i.sel);
+  devLoteItems.forEach(i=>{i.sel=!todos;});
+  renderDevLote();
+}
+async function registrarDevolucionLote(){
+  if(!canOperate)return;
+  if(!devLoteTrab){alert('Busca primero al trabajador por cédula');return;}
+  const sel=devLoteItems.filter(i=>i.sel);
+  if(!sel.length){alert('Marca al menos un artículo para devolver');return;}
+  for(const it of sel){
+    if(!it.cant||it.cant<1){alert('La cantidad de "'+it.nombre+'" debe ser mayor a 0');return;}
+    if(it.cant>it.cantPend){alert('No puedes devolver más de '+it.cantPend+' unidad(es) de "'+it.nombre+'"');return;}
+  }
+  const fecha=document.getElementById('devLoteFecha').value;
+  if(!fecha){alert('Ingresa la fecha de devolución');return;}
+  const firma=getSigData('sigDevLote');
+  if(!firma){alert('Se requiere la firma de quien devuelve');return;}
+  const unid=sel.reduce((s,i)=>s+i.cant,0);
+  if(!confirm('¿Confirmas la devolución en lote?\n\n'+devLoteTrab.nombre+' · CC '+devLoteTrab.cedula+'\n'+sel.length+' artículo(s) · '+unid+' unidad(es)'))return;
+  const btn=document.querySelector('#devModoLote .btn.primary');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const foto=getPhotoB64('prevDevLote');
+  const estado=document.getElementById('devLoteEstado').value;
+  const obs=document.getElementById('devLoteObs').value;
+  const loteDevId='LD'+Date.now();
+  let saved=0,huboOffline=false;
+  try{
+    for(const it of sel){
+      const data={
+        tipo:'devolucion',herrId:it.herrId,salidaRef:it.salidaId,
+        herrNombre:it.nombre,nombre:it.nombre,categoria:it.categoria,
+        cantidad:it.cant,trabajador:devLoteTrab.nombre,cedula:devLoteTrab.cedula,
+        estado,fechaDevolucion:fecha,observaciones:obs,
+        firma,foto,esLote:true,loteDevId,loteDevTotal:sel.length
+      };
+      const res=await guardarMov(data);
+      if(res==='offline')huboOffline=true;
+      // Stock
+      const item=inventario.find(i=>i.id===it.herrId||i.nombre===it.nombre);
+      if(item){
+        item.disponible=Math.min(item.cantidad,(item.disponible||0)+it.cant);
+        try{await db.collection('inventario').doc(item.id).update({disponible:item.disponible});}catch(e){console.log('Stock update error',e);}
+      }
+      // cantPendiente de la salida original
+      if(it.salidaId&&navigator.onLine){
+        try{
+          const salidaRef=db.collection('movimientos').doc(it.salidaId);
+          const salidaDoc=await salidaRef.get();
+          if(salidaDoc.exists){
+            const nuevoPend=Math.max(0,(salidaDoc.data().cantPendiente||salidaDoc.data().cantidad||0)-it.cant);
+            await salidaRef.update({cantPendiente:nuevoPend});
+            const mov=movimientos.find(m=>m.id===it.salidaId);
+            if(mov)mov.cantPendiente=nuevoPend;
+          }
+        }catch(e){console.log('CantPendiente update error',e);}
+      }
+      saved++;
+    }
+  }finally{
+    btn.innerHTML='✓ Confirmar devolución en lote';btn.disabled=false;
+  }
+  document.getElementById('succH').textContent='¡Devolución en lote registrada!';
+  document.getElementById('succSub').textContent=saved+' artículo(s) · '+unid+' unidad(es) · '+devLoteTrab.nombre;
+  document.getElementById('succNote').textContent=huboOffline?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
+  navTo('scSuccess','Confirmación');
+  resetDevLoteUI();
+  document.getElementById('devLoteCed').value='';
+  document.getElementById('devLoteObs').value='';
+  document.getElementById('devLoteEstado').selectedIndex=0;
+  document.getElementById('devLoteFecha').value=new Date().toISOString().split('T')[0];
+  clearSig('sigDevLote');
+  document.getElementById('prevDevLote').style.display='none';document.getElementById('pbDevLote').style.display='block';
+}
+
 // ---- VALIDACIÓN SALIDA ----
 function setupSalidaValidation(){
   ['salBuscar','salTrab','salCed','salFecha'].forEach(id=>{
@@ -1908,7 +2108,7 @@ async function registrarDevolucion(){
   if(cant>devSelected.cantPend){alert('No puedes devolver más de '+devSelected.cantPend+' unidad(es) pendientes');return;}
   if(!fecha){alert('Ingresa la fecha de devolución');return;}
   if(!firma){alert('Se requiere la firma de quien devuelve');return;}
-  const btn=document.querySelector('#tDev .btn.primary');
+  const btn=document.querySelector('#devModoInd .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const data={
     tipo:'devolucion',
@@ -2457,9 +2657,9 @@ function llenarDestinosTraslado(){
 }
 function limpiarFormulariosCC(){
   // Al cambiar de centro de costos se limpian selecciones que apuntan a artículos del otro almacén
-  ['entBuscar','entHiddenId','salBuscar','salHiddenId','lisBuscar','lisHiddenId','lotBuscar','lotHiddenId','bajaBuscar','bajaHiddenId','trasBuscar','trasHiddenId','devCedBuscar','itemSearchAsig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['entBuscar','entHiddenId','salBuscar','salHiddenId','lisBuscar','lisHiddenId','lotBuscar','lotHiddenId','bajaBuscar','bajaHiddenId','trasBuscar','trasHiddenId','devCedBuscar','devLoteCed','itemSearchAsig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   lisItems=[];renderLisItems();entLoteItems=[];renderLoteItems();
-  devSelected=null;devTrabActual=null;
+  devSelected=null;devTrabActual=null;resetDevLoteUI();
   ['devForm','devItemsList','devTrabInfo'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   const ar=document.getElementById('itemAsigResult');if(ar)ar.innerHTML='';
   const pr=document.getElementById('pazResult');if(pr)pr.innerHTML='';
@@ -2595,6 +2795,7 @@ function cancelarRegistro(contId){
     devSelected=null;devTrabActual=null;
     ['devTrabInfo','devItemsList','devForm'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   }
+  if(contId==='devModoLote'||contId==='tDev')resetDevLoteUI();
   if(contId==='tTras')document.getElementById('trasCant').value='1';
   checkSalidaReqs();
   document.getElementById('scMovimientos').scrollTop=0;window.scrollTo(0,0);

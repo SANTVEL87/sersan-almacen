@@ -607,6 +607,13 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
     <div id="tAsigTrab">
       <div class="search-box"><input type="text" id="trabSearch" placeholder="Nombre o cédula..." oninput="filterTrabajadores(this.value)"/></div>
       <div id="trabList"><div class="no-results">Cargando asignaciones...</div></div>
+      <button class="btn yellow" onclick="exportarPersonal()" style="margin-top:12px">📥 Exportar listado de personal</button>
+      <div id="importPersonalWrap" class="import-area" style="margin-top:8px;display:none">
+        <input type="file" accept=".xlsx,.xls" onchange="importarPersonalCorregido(this)"/>
+        <span style="font-size:20px">📤</span>
+        <p>Cargar listado corregido</p>
+      </div>
+      <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -674,6 +681,28 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <span style="font-size:13px;font-weight:700" id="modalTrabNombre">Trabajador</span>
     </div>
     <div class="detail-body" id="modalTrabBody"></div>
+  </div>
+
+  <!-- MODAL UNIFICAR TRABAJADORES -->
+  <div class="modal-overlay" id="modalUnificar">
+    <div class="modal-box">
+      <div class="modal-title">Unificar trabajadores <button class="modal-close" onclick="closeModal('modalUnificar')">×</button></div>
+      <div style="font-size:11px;color:var(--tx2);margin-bottom:10px">Marca los registros que son la <b>misma persona</b> y elige cuál es el correcto. Todas sus salidas y devoluciones quedarán a nombre del registro correcto.</div>
+      <div id="unifSugWrap" style="margin-bottom:12px">
+        <div class="sec-title" style="margin-bottom:6px">Posibles duplicados (<span id="unifSugCount">0</span>)</div>
+        <div id="unifSugList"></div>
+      </div>
+      <div class="sec-title" style="margin-bottom:6px">Buscar en todo el personal</div>
+      <div class="search-box"><input type="text" id="unifBuscar" placeholder="Nombre o cédula..." oninput="renderUnifTodos()" autocomplete="off"/></div>
+      <div id="unifTodos" style="max-height:220px;overflow-y:auto;background:var(--wh);border:1px solid var(--br);border-radius:9px;padding:2px 10px;margin-bottom:12px"></div>
+      <div id="unifSelWrap" style="display:none;background:var(--bg);border-radius:9px;padding:10px;margin-bottom:10px">
+        <div class="sec-title" style="margin-bottom:6px">¿Cuál es el registro correcto?</div>
+        <div id="unifSelList"></div>
+        <div class="fg" style="margin-top:8px"><label>Corregir nombre (opcional)</label><input type="text" id="unifNombreFinal" placeholder="Nombre como debe quedar"/></div>
+        <div class="fg"><label>Corregir cédula (opcional)</label><input type="text" id="unifCedFinal" placeholder="Cédula como debe quedar" inputmode="numeric"/></div>
+        <button class="btn primary" id="btnUnifOk" onclick="ejecutarUnificar()">🔗 Unificar</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL NUEVO ARTÍCULO -->
@@ -914,6 +943,8 @@ async function initApp(){
   initSig('sigSal');initSig('sigDev');initSig('sigLis');initSig('sigDevLote');
   const hoy=new Date().toISOString().split('T')[0];
   setSalidaMode('lista');setEntradaMode('individual');
+  {const bu=document.getElementById('btnUnificar');if(bu)bu.style.display=canGestionarArticulos?'block':'none';}
+  {const ip=document.getElementById('importPersonalWrap');if(ip)ip.style.display=canGestionarArticulos?'block':'none';}
   if(isOperador){
     ['tabMovEnt','tabMovBaja'].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display='none';});
     setMovTab(document.getElementById('tabMovSal'),'tSal');
@@ -929,7 +960,7 @@ async function initApp(){
   await loadCentrosCostos();
   await loadInventario();
   await loadMovimientos();
-  loadTrabajadores();
+  loadTrabajadoresReg();
   if(isAdmin)await loadSolicitudes();
 }
 
@@ -1700,7 +1731,7 @@ function setSalidaMode(mode){
 // ---- TRABAJADORES (autocompletado en salidas) ----
 let trabajadoresReg=[];
 function normTxt(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
-async function loadTrabajadores(){
+async function loadTrabajadoresReg(){
   try{
     const snap=await db.collection('trabajadores').get();
     trabajadoresReg=snap.docs.map(d=>{const x=d.data();return{nombre:x.nombre||'',cedula:String(x.cedula||d.id)};});
@@ -1757,6 +1788,261 @@ function acTrabSearch(input){
   });
   list.appendChild(add);
   list.classList.add('open');
+}
+function exportarPersonal(){
+  // Listado completo: una fila por cada forma en que se ha registrado a una persona (cédula + nombre exactos)
+  const vs=construirVariantes();
+  if(!vs.length){alert('No hay personal registrado todavía');return;}
+  const grupoDe=new Map();
+  posiblesDuplicados(vs).forEach((g,i)=>g.forEach(v=>grupoDe.set(v.key,i+1)));
+  const filas=vs.map(v=>({
+    'Grupo posible duplicado':grupoDe.get(v.key)||'',
+    'Cédula actual':v.cedula,
+    'Nombre actual':v.nombre,
+    'N° salidas':v.salidas,
+    'N° devoluciones':v.devs,
+    'Registrado a mano':v.manual?'Sí':'',
+    'CÉDULA CORRECTA':v.cedula,
+    'NOMBRE CORRECTO':v.nombre
+  })).sort((a,b)=>{
+    const ga=a['Grupo posible duplicado']||1e9,gb=b['Grupo posible duplicado']||1e9;
+    return ga-gb||a['Nombre actual'].localeCompare(b['Nombre actual']);
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(filas);
+  // Forzar cédulas como texto
+  const rng=XLSX.utils.decode_range(ws['!ref']);
+  for(let r=1;r<=rng.e.r;r++)[1,6].forEach(c=>{const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell){cell.t='s';cell.v=String(cell.v);}});
+  ws['!cols']=[{wch:10},{wch:14},{wch:34},{wch:9},{wch:9},{wch:9},{wch:16},{wch:34}];
+  XLSX.utils.book_append_sheet(wb,ws,'Personal');
+  const instr=XLSX.utils.aoa_to_sheet([
+    ['CÓMO CORREGIR EL LISTADO'],[''],
+    ['1. No modifiques las columnas "Cédula actual" ni "Nombre actual": sirven para encontrar los registros.'],
+    ['2. Corrige solo las columnas CÉDULA CORRECTA y NOMBRE CORRECTO.'],
+    ['3. Si dos filas son la misma persona, escribe en ambas la misma cédula y el mismo nombre correctos: quedarán unificadas.'],
+    ['4. Las filas con el mismo número en "Grupo posible duplicado" son sospechosas: revísalas primero.'],
+    ['5. Para eliminar a alguien registrado a mano que no tiene salidas, deja vacías sus dos columnas correctas.'],
+    ['6. Guarda el archivo y súbelo en la app: Asignados → "Cargar listado corregido".']
+  ]);
+  instr['!cols']=[{wch:110}];
+  XLSX.utils.book_append_sheet(wb,instr,'Instrucciones');
+  const fecha=new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
+  XLSX.writeFile(wb,'SERSAN_Personal_'+fecha+'.xlsx');
+}
+function importarPersonalCorregido(input){
+  if(!canGestionarArticulos){input.value='';return;}
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    input.value='';
+    let rows;
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets['Personal']||wb.Sheets[wb.SheetNames[0]];
+      rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+    }catch(err){alert('No se pudo leer el archivo: '+err.message);return;}
+    const col=(r,n)=>String(r[n]==null?'':r[n]).trim();
+    if(!rows.length||!('Cédula actual' in rows[0])||!('CÉDULA CORRECTA' in rows[0])){alert('El archivo no tiene el formato del listado de personal. Descárgalo primero con "Exportar listado de personal".');return;}
+    const vs=construirVariantes();const porKey=new Map(vs.map(v=>[v.key,v]));
+    const cambios=[],eliminar=[],errores=[],noEncontrados=[];
+    const nombrePorCed=new Map();
+    rows.forEach((r,idx)=>{
+      const fila=idx+2;
+      const ca=col(r,'Cédula actual'),na=col(r,'Nombre actual');
+      if(!ca&&!na)return;
+      const v=porKey.get(unifKey(ca,na));
+      if(!v){noEncontrados.push('Fila '+fila+': '+na+' CC '+ca);return;}
+      const cc=col(r,'CÉDULA CORRECTA').replace(/[.,\s]/g,''),nc=col(r,'NOMBRE CORRECTO').replace(/\s+/g,' ');
+      if(!cc&&!nc){
+        if(v.salidas||v.devs)errores.push('Fila '+fila+': '+na+' tiene movimientos, no se puede eliminar. Escribe a quién corresponde.');
+        else eliminar.push(v);
+        return;
+      }
+      if(!cc||!nc){errores.push('Fila '+fila+': falta '+(cc?'el nombre':'la cédula')+' correcto(a)');return;}
+      if(nombrePorCed.has(cc)&&normTxt(nombrePorCed.get(cc))!==normTxt(nc))errores.push('Cédula '+cc+' quedó con dos nombres distintos: "'+nombrePorCed.get(cc)+'" y "'+nc+'"');
+      else if(!nombrePorCed.has(cc))nombrePorCed.set(cc,nc);
+      if(cc!==v.cedula||nc!==v.nombre)cambios.push({v,cedula:cc,nombre:nombrePorCed.get(cc)||nc});
+    });
+    if(errores.length){alert('Corrige estos puntos en el Excel y vuelve a subirlo:\n\n'+errores.slice(0,15).join('\n')+(errores.length>15?'\n… y '+(errores.length-15)+' más':''));return;}
+    if(!cambios.length&&!eliminar.length){alert('No hay correcciones: el listado coincide con lo registrado.'+(noEncontrados.length?'\n\n'+noEncontrados.length+' fila(s) no se encontraron.':''));return;}
+    const mapa=new Map(cambios.map(c=>[c.v.key,c]));
+    const movs=(movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&mapa.has(unifKey(m.cedula,m.trabajador)));
+    const resumen=cambios.slice(0,12).map(c=>'• '+c.v.nombre+' ('+c.v.cedula+') → '+c.nombre+' ('+c.cedula+')').join('\n');
+    if(!confirm('Se aplicarán estas correcciones:\n\n'+resumen+(cambios.length>12?'\n… y '+(cambios.length-12)+' más':'')+
+      '\n\n'+cambios.length+' registro(s) corregidos · '+movs.length+' movimiento(s) actualizados'+(eliminar.length?' · '+eliminar.length+' eliminado(s)':'')+
+      (noEncontrados.length?'\n⚠️ '+noEncontrados.length+' fila(s) no se encontraron y se ignorarán':'')+'\n\n¿Continuar?'))return;
+    const ahora=new Date().toISOString(),quien=currentUser?currentUser.email:'';
+    try{
+      for(let i=0;i<movs.length;i+=400){
+        const batch=db.batch();
+        movs.slice(i,i+400).forEach(m=>{
+          const c=mapa.get(unifKey(m.cedula,m.trabajador));
+          batch.update(db.collection('movimientos').doc(m.id),{cedula:c.cedula,trabajador:c.nombre,
+            unificadoDe:{cedula:m.cedula||'',trabajador:m.trabajador||''},unificadoPor:quien,unificadoFecha:ahora});
+        });
+        await batch.commit();
+      }
+      movs.forEach(m=>{const c=mapa.get(unifKey(m.cedula,m.trabajador));m.unificadoDe={cedula:m.cedula||'',trabajador:m.trabajador||''};m.cedula=c.cedula;m.trabajador=c.nombre;});
+      // Base de trabajadores: queda exactamente el listado corregido
+      const finales=new Map();
+      rows.forEach(r=>{const cc=col(r,'CÉDULA CORRECTA').replace(/[.,\s]/g,''),nc=col(r,'NOMBRE CORRECTO').replace(/\s+/g,' ');if(cc&&nc&&!finales.has(cc))finales.set(cc,nombrePorCed.get(cc)||nc);});
+      const viejas=new Set([...cambios.map(c=>c.v.cedula),...eliminar.map(v=>v.cedula)].filter(c=>c&&!finales.has(c)));
+      for(const c of viejas){try{await db.collection('trabajadores').doc(c).delete();}catch(err){}}
+      for(const c of cambios){try{await db.collection('trabajadores').doc(c.cedula).set({nombre:c.nombre,cedula:c.cedula,creadoPor:quien,fecha:ahora},{merge:true});}catch(err){}}
+      trabajadoresReg=trabajadoresReg.filter(t=>!viejas.has(String(t.cedula)));
+      cambios.forEach(c=>{const t=trabajadoresReg.find(x=>String(x.cedula)===c.cedula);if(t)t.nombre=c.nombre;else trabajadoresReg.push({nombre:c.nombre,cedula:c.cedula});});
+    }catch(err){alert('Error aplicando correcciones: '+err.message+'\nAlgunas pudieron quedar aplicadas; vuelve a exportar el listado para revisar.');return;}
+    movimientos=movimientosAll.filter(movVisibleEnCC);
+    renderHistorial(movimientos);loadDashboard();loadTrabajadores();
+    alert('✅ Listado actualizado\n'+cambios.length+' registro(s) corregidos · '+movs.length+' movimiento(s) actualizados'+(eliminar.length?' · '+eliminar.length+' eliminado(s)':'')+'\n\nExporta de nuevo el listado para ver la versión definitiva.');
+  };
+  reader.readAsArrayBuffer(file);
+}
+// ---- UNIFICAR TRABAJADORES DUPLICADOS ----
+let unifVariantes=[],unifSel=new Set(),unifCorrecto=null;
+function unifKey(c,n){return String(c||'').trim()+'|'+String(n||'').trim();}
+function construirVariantes(){
+  const map=new Map();
+  (movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&(m.cedula||m.trabajador)).forEach(m=>{
+    const c=String(m.cedula||'').trim(),n=String(m.trabajador||'').trim();
+    const k=unifKey(c,n);
+    if(!map.has(k))map.set(k,{key:k,cedula:c,nombre:n,salidas:0,devs:0,manual:false});
+    const v=map.get(k);if(m.tipo==='salida')v.salidas++;else v.devs++;
+  });
+  trabajadoresReg.forEach(t=>{
+    const k=unifKey(t.cedula,t.nombre);
+    if(!map.has(k))map.set(k,{key:k,cedula:String(t.cedula||'').trim(),nombre:String(t.nombre||'').trim(),salidas:0,devs:0,manual:true});
+    else map.get(k).manual=true;
+  });
+  return [...map.values()].sort((a,b)=>a.nombre.localeCompare(b.nombre));
+}
+function difUnDigito(a,b){
+  if(!a||!b||a===b)return false;
+  if(a.length===b.length){let d=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i])d++;return d===1;}
+  if(Math.abs(a.length-b.length)!==1)return false;
+  const [s,l]=a.length<b.length?[a,b]:[b,a];
+  for(let i=0;i<l.length;i++){if(l.slice(0,i)+l.slice(i+1)===s)return true;}
+  return false;
+}
+function posiblesDuplicados(vs){
+  const par=vs.map((_,i)=>i);
+  const find=i=>par[i]===i?i:(par[i]=find(par[i]));
+  const unir=(a,b)=>{par[find(a)]=find(b);};
+  const tok=vs.map(v=>normTxt(v.nombre).split(/\s+/).filter(t=>t.length>1));
+  for(let i=0;i<vs.length;i++)for(let j=i+1;j<vs.length;j++){
+    const a=vs[i],b=vs[j],ta=tok[i],tb=tok[j];
+    const mismoNombre=normTxt(a.nombre)&&normTxt(a.nombre)===normTxt(b.nombre);
+    const mismaCed=a.cedula&&a.cedula===b.cedula;
+    const [cor,lar]=ta.length<=tb.length?[ta,tb]:[tb,ta];
+    const subNombre=cor.length>=2&&cor.every(t=>lar.includes(t));
+    const cedTypo=difUnDigito(a.cedula,b.cedula)&&ta[0]&&ta[0]===tb[0];
+    if(mismoNombre||mismaCed||subNombre||cedTypo)unir(i,j);
+  }
+  const grupos=new Map();
+  vs.forEach((v,i)=>{const r=find(i);if(!grupos.has(r))grupos.set(r,[]);grupos.get(r).push(v);});
+  return [...grupos.values()].filter(g=>g.length>1);
+}
+function abrirUnificar(){
+  if(!canGestionarArticulos)return;
+  unifVariantes=construirVariantes();unifSel=new Set();unifCorrecto=null;
+  document.getElementById('unifBuscar').value='';
+  renderUnifSugerencias();renderUnifTodos();renderUnifSel();
+  openModal('modalUnificar');
+}
+function lineaVariante(v){
+  const d=document.createElement('div');
+  const a=document.createElement('div');a.style.cssText='font-size:12px;font-weight:700';a.textContent=v.nombre||'(sin nombre)';
+  const b=document.createElement('div');b.style.cssText='font-size:10px;color:var(--tx3)';
+  b.textContent='CC '+(v.cedula||'(sin cédula)')+' · '+v.salidas+' salida(s)'+(v.devs?' · '+v.devs+' dev.':'')+(v.manual?' · registrado a mano':'');
+  d.appendChild(a);d.appendChild(b);return d;
+}
+function renderUnifSugerencias(){
+  const grupos=posiblesDuplicados(unifVariantes);
+  document.getElementById('unifSugCount').textContent=grupos.length;
+  const cont=document.getElementById('unifSugList');cont.innerHTML='';
+  if(!grupos.length){cont.innerHTML='<div class="no-results" style="padding:8px">No se detectaron duplicados automáticamente. Usa el buscador si ves alguno.</div>';return;}
+  grupos.forEach(g=>{
+    const card=document.createElement('div');
+    card.style.cssText='border:1px solid var(--br);border-radius:9px;padding:8px 10px;margin-bottom:6px;background:var(--wh)';
+    g.forEach(v=>{const l=lineaVariante(v);l.style.marginBottom='4px';card.appendChild(l);});
+    const btn=document.createElement('button');
+    btn.textContent='Revisar este grupo';
+    btn.style.cssText='margin-top:4px;padding:5px 10px;background:var(--bk);color:var(--yl);border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer';
+    btn.addEventListener('click',()=>{unifSel=new Set(g.map(v=>v.key));unifCorrecto=null;renderUnifTodos();renderUnifSel();document.getElementById('unifSelWrap').scrollIntoView({behavior:'smooth'});});
+    card.appendChild(btn);cont.appendChild(card);
+  });
+}
+function renderUnifTodos(){
+  const q=normTxt(document.getElementById('unifBuscar').value);
+  const cont=document.getElementById('unifTodos');cont.innerHTML='';
+  const lista=unifVariantes.filter(v=>!q||normTxt(v.nombre).includes(q)||v.cedula.includes(q)||unifSel.has(v.key));
+  if(!lista.length){cont.innerHTML='<div class="no-results" style="padding:8px">Sin resultados</div>';return;}
+  lista.slice(0,150).forEach(v=>{
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3f3f3;cursor:pointer';
+    const chk=document.createElement('input');chk.type='checkbox';chk.checked=unifSel.has(v.key);chk.style.width='auto';
+    chk.addEventListener('change',()=>{if(chk.checked)unifSel.add(v.key);else{unifSel.delete(v.key);if(unifCorrecto===v.key)unifCorrecto=null;}renderUnifSel();});
+    row.appendChild(chk);const l=lineaVariante(v);l.style.flex='1';row.appendChild(l);cont.appendChild(row);
+  });
+}
+function renderUnifSel(){
+  const wrap=document.getElementById('unifSelWrap'),cont=document.getElementById('unifSelList');
+  const sel=unifVariantes.filter(v=>unifSel.has(v.key));
+  wrap.style.display=sel.length>=1?'block':'none';
+  cont.innerHTML='';
+  if(sel.length===1){const n=document.createElement('div');n.style.cssText='font-size:10px;color:var(--tx2);margin-bottom:6px';n.textContent='Marca al menos 2 registros para unificar, o usa uno solo para corregir su nombre o cédula.';cont.appendChild(n);}
+  sel.forEach(v=>{
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-radius:7px;cursor:pointer;background:'+(unifCorrecto===v.key?'#E8F7EE':'var(--wh)')+';border:1px solid '+(unifCorrecto===v.key?'var(--gr)':'var(--br)');
+    const r=document.createElement('input');r.type='radio';r.name='unifOk';r.checked=unifCorrecto===v.key;r.style.width='auto';
+    r.addEventListener('change',()=>{unifCorrecto=v.key;document.getElementById('unifNombreFinal').value=v.nombre;document.getElementById('unifCedFinal').value=v.cedula;renderUnifSel();});
+    row.appendChild(r);const l=lineaVariante(v);l.style.flex='1';row.appendChild(l);cont.appendChild(row);
+  });
+  if(!unifCorrecto){document.getElementById('unifNombreFinal').value='';document.getElementById('unifCedFinal').value='';}
+}
+async function ejecutarUnificar(){
+  if(!canGestionarArticulos)return;
+  const sel=unifVariantes.filter(v=>unifSel.has(v.key));
+  if(!sel.length){alert('Marca los registros a unificar');return;}
+  if(!unifCorrecto){alert('Elige cuál es el registro correcto');return;}
+  const nombre=document.getElementById('unifNombreFinal').value.trim();
+  const cedula=document.getElementById('unifCedFinal').value.trim();
+  if(!nombre||!cedula){alert('El nombre y la cédula finales son obligatorios');return;}
+  const keys=new Set(sel.map(v=>v.key));
+  const movs=(movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&keys.has(unifKey(m.cedula,m.trabajador))&&!(String(m.cedula||'').trim()===cedula&&String(m.trabajador||'').trim()===nombre));
+  const otros=sel.filter(v=>!(v.cedula===cedula&&v.nombre===nombre));
+  if(!otros.length&&!movs.length){alert('No hay nada que cambiar: todos los registros ya están como el correcto');return;}
+  if(!confirm('¿Unificar '+sel.length+' registro(s) en:\n\n'+nombre+' · CC '+cedula+'\n\nSe actualizarán '+movs.length+' movimiento(s). Esta acción no se puede deshacer fácilmente.'))return;
+  const btn=document.getElementById('btnUnifOk');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  const ahora=new Date().toISOString(),quien=currentUser?currentUser.email:'';
+  try{
+    for(let i=0;i<movs.length;i+=400){
+      const batch=db.batch();
+      movs.slice(i,i+400).forEach(m=>{
+        batch.update(db.collection('movimientos').doc(m.id),{
+          cedula,trabajador:nombre,
+          unificadoDe:{cedula:m.cedula||'',trabajador:m.trabajador||''},unificadoPor:quien,unificadoFecha:ahora
+        });
+      });
+      await batch.commit();
+    }
+    movs.forEach(m=>{m.unificadoDe={cedula:m.cedula||'',trabajador:m.trabajador||''};m.cedula=cedula;m.trabajador=nombre;});
+    // Base de trabajadores: dejar solo el registro correcto
+    const cedsViejas=new Set(sel.map(v=>v.cedula).filter(c=>c&&c!==cedula));
+    for(const c of cedsViejas){try{await db.collection('trabajadores').doc(c).delete();}catch(e){}}
+    trabajadoresReg=trabajadoresReg.filter(t=>!cedsViejas.has(String(t.cedula))&&String(t.cedula)!==cedula);
+    try{await db.collection('trabajadores').doc(cedula).set({nombre,cedula,creadoPor:quien,fecha:ahora},{merge:true});}catch(e){}
+    trabajadoresReg.push({nombre,cedula});
+  }catch(e){
+    btn.innerHTML='🔗 Unificar';btn.disabled=false;
+    alert('Error al unificar: '+e.message+'\nRevisa la conexión e inténtalo de nuevo.');return;
+  }
+  btn.innerHTML='🔗 Unificar';btn.disabled=false;
+  movimientos=movimientosAll.filter(movVisibleEnCC);
+  renderHistorial(movimientos);loadDashboard();loadTrabajadores();
+  alert('✅ Unificado: '+nombre+' · CC '+cedula+'\n'+movs.length+' movimiento(s) actualizados.');
+  unifVariantes=construirVariantes();unifSel=new Set();unifCorrecto=null;
+  renderUnifSugerencias();renderUnifTodos();renderUnifSel();
 }
 async function registrarTrabajador(nombre,cedula){
   const t={nombre,cedula:String(cedula)};

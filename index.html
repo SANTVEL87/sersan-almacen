@@ -614,7 +614,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <p>Cargar listado corregido</p>
       </div>
       <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
-      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · D</div>
+      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · E</div>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -1851,13 +1851,13 @@ function importarPersonalCorregido(input){
     if(!rows.length||!('Cédula actual' in rows[0])||!('CÉDULA CORRECTA' in rows[0])){alert('El archivo no tiene el formato del listado de personal. Descárgalo primero con "Exportar listado de personal".');return;}
     const vs=construirVariantes();const porKey=new Map(vs.map(v=>[v.key,v]));
     const cambios=[],eliminar=[],pruebas=[],errores=[],noEncontrados=[];
-    const nombrePorCed=new Map();
+    const nombrePorCed=new Map(),destinoPorKey=new Map();
     rows.forEach((r,idx)=>{
       const fila=idx+2;
       const ca=col(r,'Cédula actual'),na=col(r,'Nombre actual');
       if(!ca&&!na)return;
       const v=porKey.get(unifKey(ca,na));
-      if(!v){noEncontrados.push('Fila '+fila+': '+na+' CC '+ca);return;}
+      if(!v){noEncontrados.push('Fila '+fila+': '+na+' · CC '+ca);return;}
       const cc=col(r,'CÉDULA CORRECTA').replace(/[.,\s]/g,''),nc=col(r,'NOMBRE CORRECTO').replace(/\s+/g,' ');
       if(normTxt(nc)==='eliminar'||normTxt(cc)==='eliminar'){
         if(!isAdmin)errores.push('Fila '+fila+': solo un administrador puede eliminar registros de prueba');
@@ -1872,8 +1872,13 @@ function importarPersonalCorregido(input){
       if(!cc||!nc){errores.push('Fila '+fila+': falta '+(cc?'el nombre':'la cédula')+' correcto(a)');return;}
       if(nombrePorCed.has(cc)&&normTxt(nombrePorCed.get(cc))!==normTxt(nc))errores.push('Cédula '+cc+' quedó con dos nombres distintos: "'+nombrePorCed.get(cc)+'" y "'+nc+'"');
       else if(!nombrePorCed.has(cc))nombrePorCed.set(cc,nc);
+      const dest=cc+'|'+normTxt(nombrePorCed.get(cc)||nc);
+      if(destinoPorKey.has(v.key)&&destinoPorKey.get(v.key)!==dest){errores.push('Fila '+fila+': "'+na+' · CC '+ca+'" aparece en otra fila con una corrección distinta. Un mismo registro actual no puede ir a dos personas.');return;}
+      if(destinoPorKey.has(v.key))return;
+      destinoPorKey.set(v.key,dest);
       if(cc!==v.cedula||nc!==v.nombre)cambios.push({v,cedula:cc,nombre:nombrePorCed.get(cc)||nc});
     });
+    if(noEncontrados.length){alert('⚠️ No se aplicó ningún cambio.\n\nEstas filas no coinciden con lo registrado en la app. Probablemente se modificaron las columnas "Cédula actual" o "Nombre actual", que NO se deben tocar:\n\n'+noEncontrados.slice(0,12).join('\n')+(noEncontrados.length>12?'\n… y '+(noEncontrados.length-12)+' más':'')+'\n\nExporta el listado de nuevo y escribe las correcciones solo en CÉDULA CORRECTA y NOMBRE CORRECTO.');return;}
     if(errores.length){alert('Corrige estos puntos en el Excel y vuelve a subirlo:\n\n'+errores.slice(0,15).join('\n')+(errores.length>15?'\n… y '+(errores.length-15)+' más':''));return;}
     if(!cambios.length&&!eliminar.length&&!pruebas.length){alert('No hay correcciones: el listado coincide con lo registrado.'+(noEncontrados.length?'\n\n'+noEncontrados.length+' fila(s) no se encontraron.':''));return;}
     const mapa=new Map(cambios.map(c=>[c.v.key,c]));

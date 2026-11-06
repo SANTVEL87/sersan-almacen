@@ -227,7 +227,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
         <button class="btn outline" style="margin-bottom:10px;font-size:11px;padding:8px" onclick="openNuevoItem()">➕ Agregar artículo nuevo al inventario</button>
         <div class="fg"><label>Cantidad <span class="req-indicator">*</span></label><input type="number" id="entCant" value="1" min="1"/></div>
-        <div class="fg"><label>Área a la que pertenece <span class="req-indicator">*</span></label><select id="entArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option></select></div>
+        <div class="fg"><label>Área a la que pertenece <span class="req-indicator">*</span></label><select id="entArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option><option value="Seguridad">Seguridad</option></select></div>
         <div class="fg"><label>Código interno</label><input type="text" id="entCodigo" placeholder="Ej: ADA-GEN" readonly style="background:var(--bg)"/></div>
         <div class="fg"><label>Marca</label><input type="text" id="entMarca" placeholder="Marca del artículo"/></div>
         <div class="fg"><label>Descripción</label><input type="text" id="entDesc" placeholder="Características"/></div>
@@ -296,7 +296,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
               <button type="button" id="rmprevLotItem" onclick="limpiarArchivoFactura('prevLotItem','pbLotItem')" style="display:none;width:100%;padding:7px;margin:-4px 0 10px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Quitar archivo cargado</button>
               <div style="font-size:9px;color:var(--tx3);margin-bottom:6px">Si varios artículos tienen el mismo N° de factura, basta con adjuntarla una vez.</div>
             </div>
-            <select id="lotAreaItem" style="width:100%;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px;margin-bottom:6px"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option></select>
+            <select id="lotAreaItem" style="width:100%;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px;margin-bottom:6px"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option><option value="Seguridad">Seguridad</option></select>
             <div style="display:flex;gap:6px;margin-bottom:6px">
               <input type="number" id="lotCantItem" value="1" min="1" title="Cantidad" style="width:60px;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
               <input type="number" id="lotValorItem" min="0" placeholder="Valor unit. $" style="width:110px;min-width:0;padding:7px;border:1px solid var(--br);border-radius:7px;font-size:12px"/>
@@ -614,7 +614,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <p>Cargar listado corregido</p>
       </div>
       <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
-      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · E</div>
+      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · F</div>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -727,7 +727,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <option value="Otra">📦 Otra</option>
         </select>
       </div>
-      <div class="fg"><label>Área a la que pertenece <span class="req-indicator">*</span></label><select id="nuevoArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option></select></div>
+      <div class="fg"><label>Área a la que pertenece <span class="req-indicator">*</span></label><select id="nuevoArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option><option value="Seguridad">Seguridad</option></select></div>
       <div class="fg"><label>Código interno</label><input type="text" id="nuevoCodigo" placeholder="Ej: MAR-GEN"/></div>
       <div class="fg"><label>Marca</label><input type="text" id="nuevaMarca" placeholder="Opcional"/></div>
       <div class="fg"><label>Descripción</label><input type="text" id="nuevaDesc" placeholder="Características técnicas"/></div>
@@ -761,7 +761,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <option value="Manual">🪛 Manual</option><option value="Apriete">🔩 Apriete</option><option value="Medición">📏 Medición</option><option value="Equipos">🧰 Equipos</option><option value="Papelería">📝 Papelería</option><option value="Otra">📦 Otra</option>
         </select>
       </div>
-      <div class="fg"><label>Área a la que pertenece</label><select id="editArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option></select></div>
+      <div class="fg"><label>Área a la que pertenece</label><select id="editArea"><option value="">— Selecciona el área —</option><option value="Obra civil">Obra civil</option><option value="Montaje">Montaje</option><option value="Revisión">Revisión</option><option value="Administración">Administración</option><option value="Cocina">Cocina</option><option value="Seguridad">Seguridad</option></select></div>
       <div class="fg"><label>Código interno</label><input type="text" id="editCodigo"/></div>
       <div class="fg"><label>Marca</label><input type="text" id="editMarca"/></div>
       <div class="fg"><label>Descripción</label><textarea id="editDesc" rows="3" style="resize:none"></textarea></div>
@@ -1134,7 +1134,7 @@ function showItemDetail(id,desdeModal){
 }
 
 // ---- ÁREAS DE LA EMPRESA ----
-const AREAS=["Obra civil", "Montaje", "Revisión", "Administración", "Cocina"];
+const AREAS=["Obra civil", "Montaje", "Revisión", "Administración", "Cocina", "Seguridad"];
 // ---- PRECIOS ----
 function numValor(v){const n=parseFloat(String(v==null?'':v).replace(/[^0-9.,-]/g,'').replace(/\./g,'').replace(',','.'));return isNaN(n)?0:n;}
 function fmtCOP(v){const n=numValor(v);return n?'$'+n.toLocaleString('es-CO',{maximumFractionDigits:0}):'—';}

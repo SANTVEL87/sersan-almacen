@@ -315,8 +315,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
       <!-- SALIDA -->
       <div id="tSal" style="display:none">
-        <!-- Toggle individual / lista -->
-        <div style="display:flex;gap:6px;margin-bottom:10px">
+        <!-- Toggle individual / lista (oculto: solo se usa el modo lote) -->
+        <div style="display:none;gap:6px;margin-bottom:10px">
           <button id="btnModInd" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:8px;font-size:11px" onclick="setSalidaMode('individual')">👤 Individual</button>
           <button id="btnModLis" class="btn" style="flex:1;padding:8px;font-size:11px" onclick="setSalidaMode('lista')">📋 Por lista</button>
         </div>
@@ -373,14 +373,20 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
         <!-- MODO LISTA -->
         <div id="salModoLis" style="display:none">
-          <div class="fg"><label>Trabajador <span class="req-indicator">*</span></label><input type="text" id="lisTrab" placeholder="Nombre completo"/></div>
+          <div class="fg"><label>Trabajador <span class="req-indicator">*</span></label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="lisTrab" placeholder="Escribe el nombre o la cédula..." oninput="acTrabSearch(this)" autocomplete="off"/>
+              <div class="autocomplete-list" id="lisTrabAcList"></div>
+            </div>
+            <div id="lisTrabNuevo" style="display:none;font-size:10px;color:var(--bl);font-weight:700;margin-top:4px">🆕 Trabajador nuevo · quedará registrado al guardar la salida</div>
+          </div>
           <div class="fg"><label>Cédula <span class="req-indicator">*</span></label><input type="text" id="lisCed" placeholder="N° de documento" inputmode="numeric"/></div>
           <div class="fg"><label>Obra / Área <span class="req-indicator">*</span></label>
             <select id="lisObra"><option>Montaje</option><option>Obra Civil</option><option>Bodega</option><option>Administrativo</option><option>Otro</option></select>
           </div>
           <div class="fg"><label>Fecha de salida <span class="req-indicator">*</span></label><input type="date" id="lisFecha"/></div>
           <div style="background:var(--bg);border-radius:9px;padding:10px;margin-bottom:10px">
-            <div class="sec-title" style="margin-bottom:6px">Agregar artículos al lote</div>
+            <div class="sec-title" style="margin-bottom:6px">Agregar artículos</div>
             <div class="autocomplete-wrap" style="margin-bottom:6px">
               <input type="text" id="lisBuscar" placeholder="Buscar artículo..." oninput="acSearch(this,'lisAcList','lisHiddenId')" autocomplete="off"/>
               <div class="autocomplete-list" id="lisAcList"></div>
@@ -392,10 +398,10 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
             </div>
           </div>
           <div id="lisItemsContainer" style="margin-bottom:10px;display:none">
-            <div class="sec-title" style="margin-bottom:6px">Lote (<span id="lisConteo">0</span> artículo(s))</div>
+            <div class="sec-title" style="margin-bottom:6px">Artículos a entregar (<span id="lisConteo">0</span>)</div>
             <div id="lisItemsList"></div>
           </div>
-          <div class="fg"><label>Foto del lote (opcional)</label>
+          <div class="fg"><label>Foto de los artículos (opcional)</label>
             <div class="photo-box" id="pbLis">
               <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevLis','pbLis')"/>
               <span class="ico">📷</span><p>Foto del paquete de herramientas</p>
@@ -409,7 +415,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
             </div>
           </div>
           <div class="fg"><label>Observaciones</label><textarea id="lisObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
-          <button class="btn primary" onclick="registrarSalidaLista()">✓ Registrar salida por lote</button>
+          <button class="btn primary" onclick="registrarSalidaLista()">✓ Registrar salida</button>
         <button class="btn" onclick="cancelarRegistro('salModoLis')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end salModoLis -->
       </div>
@@ -905,7 +911,7 @@ async function initApp(){
   }
   initSig('sigSal');initSig('sigDev');initSig('sigLis');initSig('sigDevLote');
   const hoy=new Date().toISOString().split('T')[0];
-  setSalidaMode('individual');setEntradaMode('individual');
+  setSalidaMode('lista');setEntradaMode('individual');
   document.getElementById('entFecha').value=hoy;
   document.getElementById('salFecha').value=hoy;
   document.getElementById('devFecha').value=hoy;
@@ -917,6 +923,7 @@ async function initApp(){
   await loadCentrosCostos();
   await loadInventario();
   await loadMovimientos();
+  loadTrabajadores();
   if(isAdmin)await loadSolicitudes();
 }
 
@@ -1684,6 +1691,73 @@ function setSalidaMode(mode){
   document.getElementById('btnModLis').style.color=isInd?'var(--tx)':'var(--yl)';
   document.getElementById('btnModLis').style.borderColor=isInd?'var(--br)':'var(--bk)';
 }
+// ---- TRABAJADORES (autocompletado en salidas) ----
+let trabajadoresReg=[];
+function normTxt(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+async function loadTrabajadores(){
+  try{
+    const snap=await db.collection('trabajadores').get();
+    trabajadoresReg=snap.docs.map(d=>{const x=d.data();return{nombre:x.nombre||'',cedula:String(x.cedula||d.id)};});
+  }catch(e){trabajadoresReg=[];console.log('Trabajadores no disponibles:',e.message);}
+}
+function trabajadoresBase(){
+  // Base: trabajadores con salidas registradas (todos los centros de costos) + registrados manualmente
+  const map=new Map();
+  const src=(movimientosAll&&movimientosAll.length)?movimientosAll:movimientos;
+  src.filter(m=>m.tipo==='salida'&&m.cedula&&m.trabajador).sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))).forEach(m=>{
+    const c=String(m.cedula).trim();if(!map.has(c))map.set(c,{nombre:String(m.trabajador).trim(),cedula:c});
+  });
+  trabajadoresReg.forEach(t=>{if(t.cedula&&!map.has(t.cedula))map.set(t.cedula,t);});
+  return [...map.values()];
+}
+function acTrabSearch(input){
+  const list=document.getElementById('lisTrabAcList');
+  const q=normTxt(input.value);
+  document.getElementById('lisTrabNuevo').style.display='none';
+  if(!q){list.classList.remove('open');list.innerHTML='';return;}
+  const empieza=[],contiene=[];
+  trabajadoresBase().forEach(t=>{
+    const n=normTxt(t.nombre);
+    if(n.startsWith(q)||t.cedula.startsWith(q))empieza.push(t);
+    else if(n.split(/\s+/).some(p=>p.startsWith(q)))contiene.push(t);
+  });
+  const ord=(a,b)=>a.nombre.localeCompare(b.nombre);
+  const matches=[...empieza.sort(ord),...contiene.sort(ord)].slice(0,12);
+  list.innerHTML='';
+  matches.forEach(t=>{
+    const div=document.createElement('div');
+    div.className='ac-item';
+    div.setAttribute('ontouchstart','');
+    const nom=document.createElement('span');nom.textContent='👤 '+t.nombre+' ';
+    const ced=document.createElement('span');ced.style.cssText='color:var(--tx3);font-size:10px';ced.textContent='CC '+t.cedula;
+    div.appendChild(nom);div.appendChild(ced);
+    div.addEventListener('click',function(){
+      document.getElementById('lisTrab').value=t.nombre;
+      document.getElementById('lisCed').value=t.cedula;
+      document.getElementById('lisTrabNuevo').style.display='none';
+      list.classList.remove('open');
+    });
+    list.appendChild(div);
+  });
+  const add=document.createElement('div');
+  add.className='ac-item add-new';
+  add.textContent='➕ Trabajador nuevo: "'+input.value.trim()+'"';
+  add.addEventListener('click',function(){
+    list.classList.remove('open');
+    const v=input.value.trim();
+    if(/^\d+$/.test(v)){document.getElementById('lisCed').value=v;input.value='';input.placeholder='Nombre completo del trabajador nuevo';input.focus();}
+    else{document.getElementById('lisCed').value='';document.getElementById('lisCed').focus();}
+    document.getElementById('lisTrabNuevo').style.display='block';
+  });
+  list.appendChild(add);
+  list.classList.add('open');
+}
+async function registrarTrabajador(nombre,cedula){
+  const t={nombre,cedula:String(cedula)};
+  if(!trabajadoresReg.find(x=>x.cedula===t.cedula))trabajadoresReg.push(t);
+  try{await db.collection('trabajadores').doc(t.cedula).set({nombre,cedula:t.cedula,creadoPor:currentUser?currentUser.email:'',fecha:new Date().toISOString()},{merge:true});}
+  catch(e){console.log('No se pudo guardar trabajador:',e.message);}
+}
 function agregarItemLista(){
   const nombre=document.getElementById('lisBuscar').value.trim();
   const id=document.getElementById('lisHiddenId').value;
@@ -1731,8 +1805,12 @@ async function registrarSalidaLista(){
   const fecha=document.getElementById('lisFecha').value;
   const firma=getSigData('sigLis');
   if(!trab||!ced||!fecha){alert('Completa trabajador, cédula y fecha');return;}
-  if(!lisItems.length){alert('Agrega al menos un artículo al lote');return;}
+  if(!lisItems.length){alert('Agrega al menos un artículo');return;}
   if(!firma){alert('La firma del trabajador es obligatoria');return;}
+  const trabExist=trabajadoresBase().find(t=>t.cedula===ced);
+  if(trabExist&&normTxt(trabExist.nombre)!==normTxt(trab)){
+    if(!confirm('⚠️ La cédula '+ced+' ya está registrada a nombre de:\n'+trabExist.nombre+'\n\n¿Continuar con el nombre "'+trab+'"?'))return;
+  }
   const foto=getPhotoB64('prevLis');
   const obra=document.getElementById('lisObra').value;
   const obs=document.getElementById('lisObs').value;
@@ -1756,14 +1834,16 @@ async function registrarSalidaLista(){
     }
     saved++;
   }
-  btn.innerHTML='✓ Registrar salida por lote';btn.disabled=false;
-  document.getElementById('succH').textContent='¡Lote registrado!';
+  if(!trabExist)await registrarTrabajador(trab,ced);
+  btn.innerHTML='✓ Registrar salida';btn.disabled=false;
+  document.getElementById('succH').textContent='¡Salida registrada!';
   document.getElementById('succSub').textContent=saved+' artículo(s) → '+trab;
   document.getElementById('succNote').textContent='Guardado en la nube ✅';
   navTo('scSuccess','Confirmación');
   // Reset
   lisItems=[];renderLisItems();
   ['lisTrab','lisCed','lisObs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('lisTrabNuevo').style.display='none';
   document.getElementById('lisFecha').value=new Date().toISOString().split('T')[0];
   clearSig('sigLis');
   document.getElementById('prevLis').style.display='none';document.getElementById('pbLis').style.display='block';
@@ -2953,10 +3033,11 @@ function acSearch(input,listId,hiddenId){
   if(!q){list.classList.remove('open');return;}
   const isTras=listId==='trasAcList';
   const isEnt=listId==='entAcList'||listId==='lotAcList';
-  const isSalida=listId==='salAcList'||isTras;
+  const isLis=listId==='lisAcList';
+  const isSalida=listId==='salAcList'||isLis||isTras;
   const matches=inventario.filter(i=>{
     const nameMatch=(i.nombre||'').toLowerCase().includes(q)||(i.codigo||'').toLowerCase().includes(q);
-    const catMatch=isTras||isEnt||!currentMovCat||i.categoria===currentMovCat;
+    const catMatch=isTras||isEnt||isLis||!currentMovCat||i.categoria===currentMovCat;
     const stockOk=!isSalida||(i.disponible||0)>0;
     return nameMatch&&catMatch&&stockOk;
   }).slice(0,12);

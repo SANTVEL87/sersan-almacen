@@ -614,7 +614,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <p>Cargar listado corregido</p>
       </div>
       <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
-      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · F</div>
+      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · G</div>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -822,6 +822,20 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
+// ---- VERSIÓN: si en GitHub hay una más nueva, recarga sola saltándose la caché ----
+const APP_VERSION='2026-11-06-G';
+(function(){
+  try{
+    fetch(location.pathname+'?nc='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{
+      const m=t&&t.match(/const APP_VERSION='([^']+)'/);
+      if(!m||m[1]===APP_VERSION)return;
+      let ya='';try{ya=sessionStorage.getItem('sersanVerReload')||'';}catch(e){}
+      if(ya===m[1])return; // ya se intentó con esta versión
+      try{sessionStorage.setItem('sersanVerReload',m[1]);}catch(e){}
+      location.replace(location.pathname+'?v='+encodeURIComponent(m[1])+location.hash);
+    }).catch(()=>{});
+  }catch(e){}
+})();
 firebase.initializeApp({
   apiKey:"AIzaSyAxA3tEc9-37C5Apd5jfs1P5UlGyiWXWJE",
   authDomain:"sersan-almacen.firebaseapp.com",

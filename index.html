@@ -614,7 +614,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <p>Cargar listado corregido</p>
       </div>
       <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
-      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · C</div>
+      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · D</div>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -1742,7 +1742,7 @@ function trabajadoresBase(){
   // Base: trabajadores con salidas registradas (todos los centros de costos) + registrados manualmente
   const map=new Map();
   const src=(movimientosAll&&movimientosAll.length)?movimientosAll:movimientos;
-  src.filter(m=>m.tipo==='salida'&&m.cedula&&m.trabajador).sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))).forEach(m=>{
+  src.filter(m=>m.tipo==='salida'&&!m.anulado&&m.cedula&&m.trabajador).sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))).forEach(m=>{
     const c=String(m.cedula).trim();if(!map.has(c))map.set(c,{nombre:String(m.trabajador).trim(),cedula:c,cc:m.cc||CC_DEFAULT});
   });
   trabajadoresReg.forEach(t=>{if(t.cedula&&!map.has(t.cedula))map.set(t.cedula,{nombre:t.nombre,cedula:t.cedula,cc:t.cc||CC_DEFAULT});});
@@ -1826,6 +1826,7 @@ function exportarPersonal(){
     ['3. Si dos filas son la misma persona, escribe en ambas la misma cédula y el mismo nombre correctos: quedarán unificadas.'],
     ['4. Las filas con el mismo número en "Grupo posible duplicado" son sospechosas: revísalas primero.'],
     ['5. Para eliminar a alguien registrado a mano que no tiene salidas, deja vacías sus dos columnas correctas.'],
+    ['   Para eliminar un REGISTRO DE PRUEBA (aunque tenga salidas), escribe ELIMINAR en NOMBRE CORRECTO. Solo administradores. Sus movimientos se anulan y lo pendiente vuelve al stock.'],
     ['   El "Centro de costos" es el proyecto de su salida más reciente; usa el filtro de esa columna para ver el personal de cada proyecto (no se modifica desde aquí).'],
     ['6. Guarda el archivo y súbelo en la app: Asignados → "Cargar listado corregido".']
   ]);
@@ -1849,7 +1850,7 @@ function importarPersonalCorregido(input){
     const col=(r,n)=>String(r[n]==null?'':r[n]).trim();
     if(!rows.length||!('Cédula actual' in rows[0])||!('CÉDULA CORRECTA' in rows[0])){alert('El archivo no tiene el formato del listado de personal. Descárgalo primero con "Exportar listado de personal".');return;}
     const vs=construirVariantes();const porKey=new Map(vs.map(v=>[v.key,v]));
-    const cambios=[],eliminar=[],errores=[],noEncontrados=[];
+    const cambios=[],eliminar=[],pruebas=[],errores=[],noEncontrados=[];
     const nombrePorCed=new Map();
     rows.forEach((r,idx)=>{
       const fila=idx+2;
@@ -1858,6 +1859,11 @@ function importarPersonalCorregido(input){
       const v=porKey.get(unifKey(ca,na));
       if(!v){noEncontrados.push('Fila '+fila+': '+na+' CC '+ca);return;}
       const cc=col(r,'CÉDULA CORRECTA').replace(/[.,\s]/g,''),nc=col(r,'NOMBRE CORRECTO').replace(/\s+/g,' ');
+      if(normTxt(nc)==='eliminar'||normTxt(cc)==='eliminar'){
+        if(!isAdmin)errores.push('Fila '+fila+': solo un administrador puede eliminar registros de prueba');
+        else pruebas.push(v);
+        return;
+      }
       if(!cc&&!nc){
         if(v.salidas||v.devs)errores.push('Fila '+fila+': '+na+' tiene movimientos, no se puede eliminar. Escribe a quién corresponde.');
         else eliminar.push(v);
@@ -1869,12 +1875,16 @@ function importarPersonalCorregido(input){
       if(cc!==v.cedula||nc!==v.nombre)cambios.push({v,cedula:cc,nombre:nombrePorCed.get(cc)||nc});
     });
     if(errores.length){alert('Corrige estos puntos en el Excel y vuelve a subirlo:\n\n'+errores.slice(0,15).join('\n')+(errores.length>15?'\n… y '+(errores.length-15)+' más':''));return;}
-    if(!cambios.length&&!eliminar.length){alert('No hay correcciones: el listado coincide con lo registrado.'+(noEncontrados.length?'\n\n'+noEncontrados.length+' fila(s) no se encontraron.':''));return;}
+    if(!cambios.length&&!eliminar.length&&!pruebas.length){alert('No hay correcciones: el listado coincide con lo registrado.'+(noEncontrados.length?'\n\n'+noEncontrados.length+' fila(s) no se encontraron.':''));return;}
     const mapa=new Map(cambios.map(c=>[c.v.key,c]));
     const movs=(movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&mapa.has(unifKey(m.cedula,m.trabajador)));
-    const resumen=cambios.slice(0,12).map(c=>'• '+c.v.nombre+' ('+c.v.cedula+') → '+c.nombre+' ('+c.cedula+')').join('\n');
+    const pruebaKeys=new Set(pruebas.map(v=>v.key));
+    const movsPrueba=(movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&!m.anulado&&pruebaKeys.has(unifKey(m.cedula,m.trabajador)));
+    const resumen=cambios.slice(0,12).map(c=>'• '+c.v.nombre+' ('+c.v.cedula+') → '+c.nombre+' ('+c.cedula+')').join('\n')
+      +(pruebas.length?(cambios.length?'\n':'')+pruebas.map(v=>'🧪 ELIMINAR prueba: '+v.nombre+' ('+v.cedula+')').join('\n'):'');
     if(!confirm('Se aplicarán estas correcciones:\n\n'+resumen+(cambios.length>12?'\n… y '+(cambios.length-12)+' más':'')+
       '\n\n'+cambios.length+' registro(s) corregidos · '+movs.length+' movimiento(s) actualizados'+(eliminar.length?' · '+eliminar.length+' eliminado(s)':'')+
+      (pruebas.length?'\n🧪 '+pruebas.length+' registro(s) de prueba: se anularán '+movsPrueba.length+' movimiento(s) y lo que tenían pendiente vuelve al stock disponible':'')+
       (noEncontrados.length?'\n⚠️ '+noEncontrados.length+' fila(s) no se encontraron y se ignorarán':'')+'\n\n¿Continuar?'))return;
     const ahora=new Date().toISOString(),quien=currentUser?currentUser.email:'';
     try{
@@ -1887,6 +1897,25 @@ function importarPersonalCorregido(input){
         });
         await batch.commit();
       }
+      if(movsPrueba.length){
+        // Devolver al stock lo que seguía pendiente en las salidas de prueba
+        const pm=pendMap(),delta=new Map();
+        movsPrueba.filter(m=>m.tipo==='salida'&&m.herrId).forEach(m=>{const q=pm.get(m.id)||0;if(q>0)delta.set(m.herrId,(delta.get(m.herrId)||0)+q);});
+        for(let i=0;i<movsPrueba.length;i+=400){
+          const batch=db.batch();
+          movsPrueba.slice(i,i+400).forEach(m=>batch.update(db.collection('movimientos').doc(m.id),{anulado:true,motivoAnulacion:'Registro de prueba — eliminado desde listado de personal',anuladoPor:quien,anuladoFecha:ahora}));
+          await batch.commit();
+        }
+        movsPrueba.forEach(m=>{m.anulado=true;m.motivoAnulacion='Registro de prueba — eliminado desde listado de personal';});
+        for(const [hid,q] of delta){
+          const item=inventarioAll.find(x=>x.id===hid);if(!item)continue;
+          item.disponible=Math.min(item.cantidad||0,(item.disponible||0)+q);
+          try{await db.collection('inventario').doc(hid).update({disponible:item.disponible});}catch(err){}
+        }
+        for(const v of pruebas){if(v.cedula){try{await db.collection('trabajadores').doc(v.cedula).delete();}catch(err){}}}
+        const cedsPrueba=new Set(pruebas.map(v=>v.cedula));
+        trabajadoresReg=trabajadoresReg.filter(t=>!cedsPrueba.has(String(t.cedula)));
+      }
       movs.forEach(m=>{const c=mapa.get(unifKey(m.cedula,m.trabajador));m.unificadoDe={cedula:m.cedula||'',trabajador:m.trabajador||''};m.cedula=c.cedula;m.trabajador=c.nombre;});
       // Base de trabajadores: queda exactamente el listado corregido
       const finales=new Map();
@@ -1898,8 +1927,8 @@ function importarPersonalCorregido(input){
       cambios.forEach(c=>{const t=trabajadoresReg.find(x=>String(x.cedula)===c.cedula);if(t)t.nombre=c.nombre;else trabajadoresReg.push({nombre:c.nombre,cedula:c.cedula});});
     }catch(err){alert('Error aplicando correcciones: '+err.message+'\nAlgunas pudieron quedar aplicadas; vuelve a exportar el listado para revisar.');return;}
     movimientos=movimientosAll.filter(movVisibleEnCC);
-    renderHistorial(movimientos);loadDashboard();loadTrabajadores();
-    alert('✅ Listado actualizado\n'+cambios.length+' registro(s) corregidos · '+movs.length+' movimiento(s) actualizados'+(eliminar.length?' · '+eliminar.length+' eliminado(s)':'')+'\n\nExporta de nuevo el listado para ver la versión definitiva.');
+    renderHistorial(movimientos);loadDashboard();loadTrabajadores();if(typeof renderInv==='function')renderInv(inventario);
+    alert('✅ Listado actualizado\n'+cambios.length+' registro(s) corregidos · '+movs.length+' movimiento(s) actualizados'+(eliminar.length?' · '+eliminar.length+' eliminado(s)':'')+(pruebas.length?' · '+pruebas.length+' prueba(s) eliminada(s)':'')+'\n\nExporta de nuevo el listado para ver la versión definitiva.');
   };
   reader.readAsArrayBuffer(file);
 }
@@ -1908,7 +1937,7 @@ let unifVariantes=[],unifSel=new Set(),unifCorrecto=null;
 function unifKey(c,n){return String(c||'').trim()+'|'+String(n||'').trim();}
 function construirVariantes(){
   const map=new Map();
-  (movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&(m.cedula||m.trabajador)).forEach(m=>{
+  (movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&!m.anulado&&(m.cedula||m.trabajador)).forEach(m=>{
     const c=String(m.cedula||'').trim(),n=String(m.trabajador||'').trim();
     const k=unifKey(c,n);
     if(!map.has(k))map.set(k,{key:k,cedula:c,nombre:n,salidas:0,devs:0,manual:false,cc:'',ultima:'',ccs:new Set()});

@@ -614,7 +614,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <p>Cargar listado corregido</p>
       </div>
       <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
-      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · B</div>
+      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · C</div>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -1929,7 +1929,13 @@ function construirVariantes(){
 }
 function difUnDigito(a,b){
   if(!a||!b||a===b)return false;
-  if(a.length===b.length){let d=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i])d++;return d===1;}
+  if(a.length===b.length){
+    const dif=[];for(let i=0;i<a.length;i++)if(a[i]!==b[i])dif.push(i);
+    if(dif.length===1)return true;
+    // dos dígitos vecinos invertidos (ej. 91519758 / 91519578)
+    if(dif.length===2&&dif[1]-dif[0]===1&&a[dif[0]]===b[dif[1]]&&a[dif[1]]===b[dif[0]])return true;
+    return false;
+  }
   if(Math.abs(a.length-b.length)!==1)return false;
   const [s,l]=a.length<b.length?[a,b]:[b,a];
   for(let i=0;i<l.length;i++){if(l.slice(0,i)+l.slice(i+1)===s)return true;}

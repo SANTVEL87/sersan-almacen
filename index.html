@@ -614,7 +614,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         <p>Cargar listado corregido</p>
       </div>
       <button class="btn" id="btnUnificar" onclick="abrirUnificar()" style="margin-top:8px;display:none">🔗 Unificar trabajadores duplicados</button>
-      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026</div>
+      <div style="text-align:center;font-size:9px;color:var(--tx3);margin-top:14px">Versión 6-nov-2026 · B</div>
     </div>
     <div id="tAsigItem" style="display:none">
       <div class="autocomplete-wrap" style="margin-bottom:10px">
@@ -1735,7 +1735,7 @@ function normTxt(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036
 async function loadTrabajadoresReg(){
   try{
     const snap=await db.collection('trabajadores').get();
-    trabajadoresReg=snap.docs.map(d=>{const x=d.data();return{nombre:x.nombre||'',cedula:String(x.cedula||d.id)};});
+    trabajadoresReg=snap.docs.map(d=>{const x=d.data();return{nombre:x.nombre||'',cedula:String(x.cedula||d.id),cc:x.cc||''};});
   }catch(e){trabajadoresReg=[];console.log('Trabajadores no disponibles:',e.message);}
 }
 function trabajadoresBase(){
@@ -1743,9 +1743,9 @@ function trabajadoresBase(){
   const map=new Map();
   const src=(movimientosAll&&movimientosAll.length)?movimientosAll:movimientos;
   src.filter(m=>m.tipo==='salida'&&m.cedula&&m.trabajador).sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))).forEach(m=>{
-    const c=String(m.cedula).trim();if(!map.has(c))map.set(c,{nombre:String(m.trabajador).trim(),cedula:c});
+    const c=String(m.cedula).trim();if(!map.has(c))map.set(c,{nombre:String(m.trabajador).trim(),cedula:c,cc:m.cc||CC_DEFAULT});
   });
-  trabajadoresReg.forEach(t=>{if(t.cedula&&!map.has(t.cedula))map.set(t.cedula,t);});
+  trabajadoresReg.forEach(t=>{if(t.cedula&&!map.has(t.cedula))map.set(t.cedula,{nombre:t.nombre,cedula:t.cedula,cc:t.cc||CC_DEFAULT});});
   return [...map.values()];
 }
 function acTrabSearch(input){
@@ -1759,7 +1759,7 @@ function acTrabSearch(input){
     if(n.startsWith(q)||t.cedula.startsWith(q))empieza.push(t);
     else if(n.split(/\s+/).some(p=>p.startsWith(q)))contiene.push(t);
   });
-  const ord=(a,b)=>a.nombre.localeCompare(b.nombre);
+  const ord=(a,b)=>((a.cc===ccActivo?0:1)-(b.cc===ccActivo?0:1))||a.nombre.localeCompare(b.nombre);
   const matches=[...empieza.sort(ord),...contiene.sort(ord)].slice(0,12);
   list.innerHTML='';
   matches.forEach(t=>{
@@ -1767,7 +1767,7 @@ function acTrabSearch(input){
     div.className='ac-item';
     div.setAttribute('ontouchstart','');
     const nom=document.createElement('span');nom.textContent='👤 '+t.nombre+' ';
-    const ced=document.createElement('span');ced.style.cssText='color:var(--tx3);font-size:10px';ced.textContent='CC '+t.cedula;
+    const ced=document.createElement('span');ced.style.cssText='color:var(--tx3);font-size:10px';ced.textContent='CC '+t.cedula+(t.cc&&t.cc!==ccActivo?' · 📍 '+ccNombre(t.cc):'');
     div.appendChild(nom);div.appendChild(ced);
     div.addEventListener('click',function(){
       document.getElementById('lisTrab').value=t.nombre;
@@ -1797,24 +1797,27 @@ function exportarPersonal(){
   const grupoDe=new Map();
   posiblesDuplicados(vs).forEach((g,i)=>g.forEach(v=>grupoDe.set(v.key,i+1)));
   const filas=vs.map(v=>({
+    'Centro de costos':ccNombre(v.cc),
     'Grupo posible duplicado':grupoDe.get(v.key)||'',
     'Cédula actual':v.cedula,
     'Nombre actual':v.nombre,
     'N° salidas':v.salidas,
     'N° devoluciones':v.devs,
     'Registrado a mano':v.manual?'Sí':'',
+    'También tuvo salidas en':[...v.ccs].filter(c=>c!==v.cc).map(ccNombre).join(', '),
     'CÉDULA CORRECTA':v.cedula,
     'NOMBRE CORRECTO':v.nombre
   })).sort((a,b)=>{
     const ga=a['Grupo posible duplicado']||1e9,gb=b['Grupo posible duplicado']||1e9;
-    return ga-gb||a['Nombre actual'].localeCompare(b['Nombre actual']);
+    return a['Centro de costos'].localeCompare(b['Centro de costos'])||ga-gb||a['Nombre actual'].localeCompare(b['Nombre actual']);
   });
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.json_to_sheet(filas);
   // Forzar cédulas como texto
   const rng=XLSX.utils.decode_range(ws['!ref']);
-  for(let r=1;r<=rng.e.r;r++)[1,6].forEach(c=>{const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell){cell.t='s';cell.v=String(cell.v);}});
-  ws['!cols']=[{wch:10},{wch:14},{wch:34},{wch:9},{wch:9},{wch:9},{wch:16},{wch:34}];
+  for(let r=1;r<=rng.e.r;r++)[2,8].forEach(c=>{const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell){cell.t='s';cell.v=String(cell.v);}});
+  ws['!cols']=[{wch:16},{wch:10},{wch:14},{wch:34},{wch:9},{wch:9},{wch:9},{wch:20},{wch:16},{wch:34}];
+  ws['!autofilter']={ref:ws['!ref']};
   XLSX.utils.book_append_sheet(wb,ws,'Personal');
   const instr=XLSX.utils.aoa_to_sheet([
     ['CÓMO CORREGIR EL LISTADO'],[''],
@@ -1823,6 +1826,7 @@ function exportarPersonal(){
     ['3. Si dos filas son la misma persona, escribe en ambas la misma cédula y el mismo nombre correctos: quedarán unificadas.'],
     ['4. Las filas con el mismo número en "Grupo posible duplicado" son sospechosas: revísalas primero.'],
     ['5. Para eliminar a alguien registrado a mano que no tiene salidas, deja vacías sus dos columnas correctas.'],
+    ['   El "Centro de costos" es el proyecto de su salida más reciente; usa el filtro de esa columna para ver el personal de cada proyecto (no se modifica desde aquí).'],
     ['6. Guarda el archivo y súbelo en la app: Asignados → "Cargar listado corregido".']
   ]);
   instr['!cols']=[{wch:110}];
@@ -1907,14 +1911,20 @@ function construirVariantes(){
   (movimientosAll||[]).filter(m=>(m.tipo==='salida'||m.tipo==='devolucion')&&(m.cedula||m.trabajador)).forEach(m=>{
     const c=String(m.cedula||'').trim(),n=String(m.trabajador||'').trim();
     const k=unifKey(c,n);
-    if(!map.has(k))map.set(k,{key:k,cedula:c,nombre:n,salidas:0,devs:0,manual:false});
+    if(!map.has(k))map.set(k,{key:k,cedula:c,nombre:n,salidas:0,devs:0,manual:false,cc:'',ultima:'',ccs:new Set()});
     const v=map.get(k);if(m.tipo==='salida')v.salidas++;else v.devs++;
+    if(m.tipo==='salida'&&!m.anulado){
+      const cc=m.cc||CC_DEFAULT;v.ccs.add(cc);
+      const f=String(m.fechaSalida||m.fecha||'');
+      if(!v.cc||f>v.ultima){v.cc=cc;v.ultima=f;}
+    }
   });
   trabajadoresReg.forEach(t=>{
     const k=unifKey(t.cedula,t.nombre);
-    if(!map.has(k))map.set(k,{key:k,cedula:String(t.cedula||'').trim(),nombre:String(t.nombre||'').trim(),salidas:0,devs:0,manual:true});
+    if(!map.has(k))map.set(k,{key:k,cedula:String(t.cedula||'').trim(),nombre:String(t.nombre||'').trim(),salidas:0,devs:0,manual:true,cc:t.cc||'',ultima:'',ccs:new Set(t.cc?[t.cc]:[])});
     else map.get(k).manual=true;
   });
+  map.forEach(v=>{if(!v.cc)v.cc=CC_DEFAULT;});
   return [...map.values()].sort((a,b)=>a.nombre.localeCompare(b.nombre));
 }
 function difUnDigito(a,b){
@@ -2046,9 +2056,9 @@ async function ejecutarUnificar(){
   renderUnifSugerencias();renderUnifTodos();renderUnifSel();
 }
 async function registrarTrabajador(nombre,cedula){
-  const t={nombre,cedula:String(cedula)};
+  const t={nombre,cedula:String(cedula),cc:ccActivo};
   if(!trabajadoresReg.find(x=>x.cedula===t.cedula))trabajadoresReg.push(t);
-  try{await db.collection('trabajadores').doc(t.cedula).set({nombre,cedula:t.cedula,creadoPor:currentUser?currentUser.email:'',fecha:new Date().toISOString()},{merge:true});}
+  try{await db.collection('trabajadores').doc(t.cedula).set({nombre,cedula:t.cedula,cc:ccActivo,creadoPor:currentUser?currentUser.email:'',fecha:new Date().toISOString()},{merge:true});}
   catch(e){console.log('No se pudo guardar trabajador:',e.message);}
 }
 function agregarItemLista(){

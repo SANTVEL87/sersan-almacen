@@ -422,8 +422,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
       <!-- DEVOLUCIÓN -->
       <div id="tDev" style="display:none">
-        <!-- Toggle uno a uno / en lote -->
-        <div style="display:flex;gap:6px;margin-bottom:10px">
+        <!-- Toggle uno a uno / en lote (oculto: solo se usa el modo lote, llamado "Devolución") -->
+        <div style="display:none;gap:6px;margin-bottom:10px">
           <button id="btnDevInd" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:8px;font-size:11px" onclick="setDevMode('individual')">👤 Uno a uno</button>
           <button id="btnDevLote" class="btn" style="flex:1;padding:8px;font-size:11px" onclick="setDevMode('lote')">📦 En lote</button>
         </div>
@@ -436,7 +436,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div>
 
         <!-- MODO UNO A UNO -->
-        <div id="devModoInd">
+        <div id="devModoInd" style="display:none">
         <div class="fg"><label class="devBuscarLbl">Trabajador <span class="req-indicator">*</span></label>
           <div class="autocomplete-wrap">
             <input type="text" id="devBuscarInd" class="devBuscarInp" placeholder="Escribe el nombre o la cédula..." oninput="devAcSearch(this,'ind')" autocomplete="off"/>
@@ -485,7 +485,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
         </div><!-- end devModoInd -->
 
         <!-- MODO EN LOTE -->
-        <div id="devModoLote" style="display:none">
+        <div id="devModoLote">
           <div class="fg"><label class="devBuscarLbl">Trabajador <span class="req-indicator">*</span></label>
             <div class="autocomplete-wrap">
               <input type="text" id="devBuscarLote" class="devBuscarInp" placeholder="Escribe el nombre o la cédula..." oninput="devAcSearch(this,'lote')" autocomplete="off"/>
@@ -507,10 +507,10 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
             <div id="devLoteLista" style="background:var(--wh);border:1px solid var(--br);border-radius:9px;padding:4px 10px;margin-bottom:8px"></div>
             <div id="devLoteResumen" style="font-size:11px;font-weight:700;color:var(--bl);margin-bottom:10px"></div>
             <div class="fg"><label>Fecha de devolución <span class="req-indicator">*</span></label><input type="date" id="devLoteFecha"/></div>
-            <div class="fg"><label>Estado al regreso (aplica a todo el lote)</label>
+            <div class="fg"><label>Estado al regreso (aplica a todo lo devuelto)</label>
               <select id="devLoteEstado"><option>Bueno</option><option>Regular</option><option>Dañado</option></select>
             </div>
-            <div class="fg"><label>Foto del lote (opcional)</label>
+            <div class="fg"><label>Foto de la devolución (opcional)</label>
               <div class="photo-box" id="pbDevLote">
                 <input type="file" accept="image/*" capture="environment" onchange="prevPhoto(this,'prevDevLote','pbDevLote')"/>
                 <span class="ico">📷</span><p>Foto de todo lo que devuelve</p>
@@ -524,7 +524,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
               </div>
             </div>
             <div class="fg"><label>Observaciones</label><textarea id="devLoteObs" rows="2" style="resize:none" placeholder="Estado, novedades..."></textarea></div>
-            <button class="btn primary" onclick="registrarDevolucionLote()">✓ Confirmar devolución en lote</button>
+            <button class="btn primary" onclick="registrarDevolucionLote()">✓ Confirmar devolución</button>
           </div>
           <button class="btn" onclick="cancelarRegistro('devModoLote')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end devModoLote -->
@@ -1644,7 +1644,7 @@ function devMostrarPorArticulo(key,nombre,modo){
     salidas.forEach(s=>{
       const c=String(s.cedula||'');if(vistos.has(c))return;vistos.add(c);
       const tot=salidas.filter(x=>String(x.cedula||'')===c).reduce((a,x)=>a+x.cantPendiente,0);
-      const card=tarjeta({...s,cantPendiente:tot},'Toca para armar su devolución en lote ›',function(){
+      const card=tarjeta({...s,cantPendiente:tot},'Toca para registrar su devolución ›',function(){
         document.getElementById('devLoteCed').value=c;
         res.style.display='none';
         buscarDevLote(key);
@@ -1744,7 +1744,7 @@ async function registrarDevolucionLote(){
   const firma=getSigData('sigDevLote');
   if(!firma){alert('Se requiere la firma de quien devuelve');return;}
   const unid=sel.reduce((s,i)=>s+i.cant,0);
-  if(!confirm('¿Confirmas la devolución en lote?\n\n'+devLoteTrab.nombre+' · CC '+devLoteTrab.cedula+'\n'+sel.length+' artículo(s) · '+unid+' unidad(es)'))return;
+  if(!confirm('¿Confirmas la devolución?\n\n'+devLoteTrab.nombre+' · CC '+devLoteTrab.cedula+'\n'+sel.length+' artículo(s) · '+unid+' unidad(es)'))return;
   const btn=document.querySelector('#devModoLote .btn.primary');
   btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
   const foto=getPhotoB64('prevDevLote');
@@ -1774,9 +1774,9 @@ async function registrarDevolucionLote(){
       saved++;
     }
   }finally{
-    btn.innerHTML='✓ Confirmar devolución en lote';btn.disabled=false;
+    btn.innerHTML='✓ Confirmar devolución';btn.disabled=false;
   }
-  document.getElementById('succH').textContent='¡Devolución en lote registrada!';
+  document.getElementById('succH').textContent='¡Devolución registrada!';
   document.getElementById('succSub').textContent=saved+' artículo(s) · '+unid+' unidad(es) · '+devLoteTrab.nombre;
   document.getElementById('succNote').textContent=huboOffline?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
   navTo('scSuccess','Confirmación');

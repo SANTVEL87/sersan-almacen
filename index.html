@@ -427,14 +427,22 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <button id="btnDevInd" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:8px;font-size:11px" onclick="setDevMode('individual')">👤 Uno a uno</button>
           <button id="btnDevLote" class="btn" style="flex:1;padding:8px;font-size:11px" onclick="setDevMode('lote')">📦 En lote</button>
         </div>
+        <!-- Buscar por trabajador / artículo -->
+        <div class="fg"><label>Buscar por</label>
+          <div style="display:flex;gap:6px">
+            <button id="btnDevPorTrab" class="btn" style="flex:1;background:var(--bk);color:var(--yl);border-color:var(--bk);padding:7px;font-size:11px" onclick="setDevBuscarPor('trab')">👷 Trabajador</button>
+            <button id="btnDevPorArt" class="btn" style="flex:1;padding:7px;font-size:11px" onclick="setDevBuscarPor('art')">🔧 Artículo</button>
+          </div>
+        </div>
 
         <!-- MODO UNO A UNO -->
         <div id="devModoInd">
-        <div class="fg"><label>Cédula del trabajador <span class="req-indicator">*</span></label>
-          <div style="display:flex;gap:6px">
-            <input type="text" id="devCedBuscar" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
-            <button onclick="buscarDevPorCedula()" style="padding:8px 12px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Buscar</button>
+        <div class="fg"><label class="devBuscarLbl">Trabajador <span class="req-indicator">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="devBuscarInd" class="devBuscarInp" placeholder="Escribe el nombre o la cédula..." oninput="devAcSearch(this,'ind')" autocomplete="off"/>
+            <div class="autocomplete-list" id="devAcInd"></div>
           </div>
+          <input type="hidden" id="devCedBuscar"/>
         </div>
         <div id="devTrabInfo" style="display:none" class="card" style="background:var(--bll)">
           <div style="font-size:11px;color:var(--bl);font-weight:700">Trabajador encontrado:</div>
@@ -442,7 +450,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           <div style="font-size:10px;color:var(--tx2)" id="devTrabCed"></div>
         </div>
         <div id="devItemsList" style="display:none">
-          <div class="sec-title" style="margin-top:8px">Artículos asignados — seleccionar para devolver</div>
+          <div class="sec-title" style="margin-top:8px" id="devItemsTitulo">Artículos asignados — seleccionar para devolver</div>
           <div id="devItemsContainer"></div>
         </div>
         <div id="devForm" style="display:none">
@@ -478,12 +486,14 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
         <!-- MODO EN LOTE -->
         <div id="devModoLote" style="display:none">
-          <div class="fg"><label>Cédula del trabajador <span class="req-indicator">*</span></label>
-            <div style="display:flex;gap:6px">
-              <input type="text" id="devLoteCed" placeholder="Número de cédula..." inputmode="numeric" style="flex:1;padding:8px 10px;border:1px solid var(--br);border-radius:7px;font-size:13px"/>
-              <button onclick="buscarDevLote()" style="padding:8px 12px;background:var(--bk);color:var(--yl);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Buscar</button>
+          <div class="fg"><label class="devBuscarLbl">Trabajador <span class="req-indicator">*</span></label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="devBuscarLote" class="devBuscarInp" placeholder="Escribe el nombre o la cédula..." oninput="devAcSearch(this,'lote')" autocomplete="off"/>
+              <div class="autocomplete-list" id="devAcLote"></div>
             </div>
+            <input type="hidden" id="devLoteCed"/>
           </div>
+          <div id="devLoteArtRes" style="display:none"></div>
           <div id="devLoteTrabInfo" class="card" style="display:none;background:var(--bll)">
             <div style="font-size:11px;color:var(--bl);font-weight:700">Trabajador encontrado:</div>
             <div style="font-size:13px;font-weight:800;margin-top:2px" id="devLoteTrabNombre"></div>
@@ -1441,7 +1451,7 @@ function showTrabajadorDetail(cedula){
 
 function buscarDevPorCedula(){
   const cedula=document.getElementById('devCedBuscar').value.trim();
-  if(!cedula){alert('Ingresa la cédula');return;}
+  if(!cedula){alert('Escribe y selecciona un trabajador de la lista');return;}
   const salidas=salidasPendientes(movimientos.filter(m=>m.cedula===cedula));
   const trabInfo=document.getElementById('devTrabInfo');
   const itemsList=document.getElementById('devItemsList');
@@ -1456,6 +1466,7 @@ function buscarDevPorCedula(){
     return;
   }
   devTrabActual={cedula,nombre:salidas[0].trabajador||'—',email:salidas[0].email||''};
+  document.getElementById('devItemsTitulo').textContent='Artículos asignados — seleccionar para devolver';
   document.getElementById('devTrabNombre').textContent=devTrabActual.nombre;
   document.getElementById('devTrabCed').textContent='CC '+cedula;
   trabInfo.style.display='block';
@@ -1497,6 +1508,153 @@ function cancelarDev(){
   clearSig('sigDev');
 }
 
+
+// ---- DEVOLUCIÓN: BÚSQUEDA POR TRABAJADOR O POR ARTÍCULO (autocompletado) ----
+let devBuscarPor='trab';
+function setDevBuscarPor(modo){
+  devBuscarPor=modo;
+  const esT=modo==='trab';
+  const bt=document.getElementById('btnDevPorTrab'),ba=document.getElementById('btnDevPorArt');
+  bt.style.background=esT?'var(--bk)':'var(--wh)';bt.style.color=esT?'var(--yl)':'var(--tx)';bt.style.borderColor=esT?'var(--bk)':'var(--br)';
+  ba.style.background=esT?'var(--wh)':'var(--bk)';ba.style.color=esT?'var(--tx)':'var(--yl)';ba.style.borderColor=esT?'var(--br)':'var(--bk)';
+  document.querySelectorAll('.devBuscarLbl').forEach(l=>{l.firstChild.textContent=esT?'Trabajador ':'Artículo ';});
+  document.querySelectorAll('.devBuscarInp').forEach(i=>{i.value='';i.placeholder=esT?'Escribe el nombre o la cédula...':'Escribe el nombre o código del artículo...';});
+  devLimpiarResultados('ind');devLimpiarResultados('lote');
+}
+function devLimpiarResultados(modo){
+  if(modo==='ind'){
+    devSelected=null;devTrabActual=null;
+    document.getElementById('devCedBuscar').value='';
+    ['devTrabInfo','devItemsList','devForm'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  }else{
+    document.getElementById('devLoteCed').value='';
+    resetDevLoteUI();
+    const r=document.getElementById('devLoteArtRes');if(r){r.style.display='none';r.innerHTML='';}
+  }
+}
+function devArtKey(s){return s.herrId?String(s.herrId):'n:'+normTxt(s.herrNombre);}
+function devAcItem(list,texto,sub,onClick){
+  const div=document.createElement('div');
+  div.className='ac-item';
+  div.setAttribute('ontouchstart','');
+  const a=document.createElement('span');a.textContent=texto+' ';
+  const b=document.createElement('span');b.style.cssText='color:var(--tx3);font-size:10px';b.textContent=sub;
+  div.appendChild(a);div.appendChild(b);
+  if(onClick)div.addEventListener('click',onClick);else div.style.cursor='default';
+  list.appendChild(div);
+  return div;
+}
+function devAcSearch(input,modo){
+  const list=document.getElementById(modo==='ind'?'devAcInd':'devAcLote');
+  devLimpiarResultados(modo);
+  const q=normTxt(input.value);
+  list.innerHTML='';
+  if(!q){list.classList.remove('open');return;}
+  const pend=salidasPendientes(movimientos);
+  if(devBuscarPor==='trab'){
+    const map=new Map();
+    pend.forEach(s=>{
+      const c=String(s.cedula||'').trim();if(!c)return;
+      if(!map.has(c))map.set(c,{cedula:c,nombre:String(s.trabajador||'—').trim(),arts:0,unid:0});
+      const t=map.get(c);t.arts++;t.unid+=s.cantPendiente;
+    });
+    const empieza=[],contiene=[];
+    map.forEach(t=>{
+      const n=normTxt(t.nombre);
+      if(n.startsWith(q)||t.cedula.startsWith(q))empieza.push(t);
+      else if(n.split(/\s+/).some(p=>p.startsWith(q)))contiene.push(t);
+    });
+    const ord=(a,b)=>a.nombre.localeCompare(b.nombre);
+    const matches=[...empieza.sort(ord),...contiene.sort(ord)].slice(0,12);
+    matches.forEach(t=>{
+      devAcItem(list,'👤 '+t.nombre,'CC '+t.cedula+' · '+t.arts+' art. · '+t.unid+' unid. pendientes',function(){
+        input.value=t.nombre;list.classList.remove('open');
+        if(modo==='ind'){document.getElementById('devCedBuscar').value=t.cedula;buscarDevPorCedula();}
+        else{document.getElementById('devLoteCed').value=t.cedula;buscarDevLote();}
+      });
+    });
+    if(!matches.length){
+      // ¿Coincide con alguien que tiene pendientes en otro centro de costos?
+      const otros=new Map();
+      salidasPendientes(movimientosAll.filter(m=>(m.cc||CC_DEFAULT)!==ccActivo)).forEach(s=>{
+        const c=String(s.cedula||'').trim(),n=normTxt(s.trabajador);
+        if(c&&(n.startsWith(q)||c.startsWith(q)||n.split(/\s+/).some(p=>p.startsWith(q)))&&!otros.has(c))otros.set(c,{nombre:s.trabajador,cc:s.cc});
+      });
+      if(otros.size){
+        [...otros.values()].slice(0,5).forEach(o=>devAcItem(list,'📍 '+o.nombre,'Tiene pendientes en '+ccNombre(o.cc)+' · cambia de centro de costos',null));
+      }else{
+        devAcItem(list,'Sin coincidencias','Ningún trabajador con artículos pendientes en '+ccNombre(ccActivo),null);
+      }
+    }
+  }else{
+    const map=new Map();
+    pend.forEach(s=>{
+      const k=devArtKey(s);
+      if(!map.has(k)){
+        const inv=s.herrId?inventario.find(i=>i.id===s.herrId):null;
+        map.set(k,{key:k,nombre:s.herrNombre||(inv&&inv.nombre)||'—',codigo:(inv&&inv.codigo)||'',categoria:s.categoria||(inv&&inv.categoria)||'',trabs:new Set(),unid:0});
+      }
+      const a=map.get(k);a.trabs.add(String(s.cedula||''));a.unid+=s.cantPendiente;
+    });
+    const matches=[...map.values()].filter(a=>normTxt(a.nombre).includes(q)||normTxt(a.codigo).includes(q))
+      .sort((a,b)=>{const sa=normTxt(a.nombre).startsWith(q)?0:1,sb=normTxt(b.nombre).startsWith(q)?0:1;return (sa-sb)||a.nombre.localeCompare(b.nombre);})
+      .slice(0,12);
+    matches.forEach(a=>{
+      devAcItem(list,catIcon(a.categoria)+' '+a.nombre,a.trabs.size+' trabajador(es) · '+a.unid+' unid. pendientes',function(){
+        input.value=a.nombre;list.classList.remove('open');
+        devMostrarPorArticulo(a.key,a.nombre,modo);
+      });
+    });
+    if(!matches.length)devAcItem(list,'Sin coincidencias','Ningún artículo pendiente de devolución en '+ccNombre(ccActivo),null);
+  }
+  list.classList.add('open');
+}
+function devMostrarPorArticulo(key,nombre,modo){
+  const salidas=salidasPendientes(movimientos).filter(s=>devArtKey(s)===key)
+    .sort((a,b)=>String(a.trabajador||'').localeCompare(String(b.trabajador||'')));
+  if(!salidas.length){alert('"'+nombre+'" ya no tiene unidades pendientes de devolución.');return;}
+  const tarjeta=function(s,txtAccion,onClick){
+    const div=document.createElement('div');
+    div.className='pend';
+    div.style.cssText='cursor:pointer;border-left:3px solid var(--bl);margin-bottom:8px';
+    const fecha=(s.fechaSalida||s.fecha)?new Date(s.fechaSalida||s.fecha).toLocaleDateString('es-CO'):'—';
+    const n=document.createElement('div');n.className='pend-name';n.textContent='👤 '+(s.trabajador||'—');
+    const d=document.createElement('div');d.className='pend-det';d.textContent='CC '+(s.cedula||'—')+' · '+s.cantPendiente+' unidad(es) pendientes';
+    const f=document.createElement('div');f.className='pend-days';f.textContent='📤 Salió: '+fecha;
+    const a=document.createElement('div');a.style.cssText='font-size:10px;font-weight:700;color:var(--bl);margin-top:4px';a.textContent=txtAccion;
+    div.appendChild(n);div.appendChild(d);div.appendChild(f);div.appendChild(a);
+    div.addEventListener('click',onClick);
+    return div;
+  };
+  if(modo==='ind'){
+    document.getElementById('devTrabInfo').style.display='none';
+    document.getElementById('devItemsTitulo').textContent='Quién tiene "'+nombre+'" — seleccionar para devolver';
+    const cont=document.getElementById('devItemsContainer');cont.innerHTML='';
+    salidas.forEach(s=>cont.appendChild(tarjeta(s,'Toca aquí para registrar devolución ›',function(){
+      devTrabActual={cedula:s.cedula,nombre:s.trabajador||'—',email:s.email||''};
+      seleccionarDevItem(s.id,s.herrNombre||nombre,s.cantPendiente,s.cedula||'',s.trabajador||'');
+    })));
+    document.getElementById('devItemsList').style.display='block';
+  }else{
+    const res=document.getElementById('devLoteArtRes');res.innerHTML='';
+    const t=document.createElement('div');t.className='sec-title';t.style.marginTop='8px';t.textContent='Quién tiene "'+nombre+'"';
+    res.appendChild(t);
+    // Un trabajador puede tener varias salidas del mismo artículo: una tarjeta por trabajador
+    const vistos=new Set();
+    salidas.forEach(s=>{
+      const c=String(s.cedula||'');if(vistos.has(c))return;vistos.add(c);
+      const tot=salidas.filter(x=>String(x.cedula||'')===c).reduce((a,x)=>a+x.cantPendiente,0);
+      const card=tarjeta({...s,cantPendiente:tot},'Toca para armar su devolución en lote ›',function(){
+        document.getElementById('devLoteCed').value=c;
+        res.style.display='none';
+        buscarDevLote(key);
+      });
+      res.appendChild(card);
+    });
+    res.style.display='block';
+  }
+}
+
 // ---- DEVOLUCIÓN EN LOTE ----
 let devLoteItems=[],devLoteTrab=null;
 function setDevMode(mode){
@@ -1513,9 +1671,9 @@ function resetDevLoteUI(){
   ['devLoteTrabInfo','devLoteWrap'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   const l=document.getElementById('devLoteLista');if(l)l.innerHTML='';
 }
-function buscarDevLote(){
+function buscarDevLote(soloArtKey){
   const cedula=document.getElementById('devLoteCed').value.trim();
-  if(!cedula){alert('Ingresa la cédula');return;}
+  if(!cedula){alert('Escribe y selecciona un trabajador de la lista');return;}
   const salidas=salidasPendientes(movimientos.filter(m=>m.cedula===cedula));
   resetDevLoteUI();
   if(!salidas.length){
@@ -1524,7 +1682,7 @@ function buscarDevLote(){
     return;
   }
   devLoteTrab={cedula,nombre:salidas[0].trabajador||'—'};
-  devLoteItems=salidas.map(s=>({salidaId:s.id,herrId:s.herrId||'',nombre:s.herrNombre||'—',categoria:s.categoria||'',cantPend:parseInt(s.cantPendiente)||1,cant:parseInt(s.cantPendiente)||1,sel:true,fechaSalida:s.fechaSalida||s.fecha||''}));
+  devLoteItems=salidas.map(s=>({salidaId:s.id,herrId:s.herrId||'',nombre:s.herrNombre||'—',categoria:s.categoria||'',cantPend:parseInt(s.cantPendiente)||1,cant:parseInt(s.cantPendiente)||1,sel:soloArtKey?devArtKey(s)===soloArtKey:true,fechaSalida:s.fechaSalida||s.fecha||''}));
   document.getElementById('devLoteTrabNombre').textContent=devLoteTrab.nombre;
   document.getElementById('devLoteTrabCed').textContent='CC '+cedula+' · '+devLoteItems.length+' artículo(s) pendientes';
   document.getElementById('devLoteTrabInfo').style.display='block';
@@ -1571,13 +1729,13 @@ function devLoteToggleTodos(){
 }
 async function registrarDevolucionLote(){
   if(!canOperate)return;
-  if(!devLoteTrab){alert('Busca primero al trabajador por cédula');return;}
+  if(!devLoteTrab){alert('Busca primero al trabajador o el artículo');return;}
   const sel=devLoteItems.filter(i=>i.sel);
   if(!sel.length){alert('Marca al menos un artículo para devolver');return;}
   const pmActual=pendMap();
   for(const it of sel){
     const pr=pmActual.get(it.salidaId);if(pr!==undefined)it.cantPend=pr;
-    if(!it.cantPend){alert('"'+it.nombre+'" ya no tiene unidades pendientes. Vuelve a buscar la cédula.');return;}
+    if(!it.cantPend){alert('"'+it.nombre+'" ya no tiene unidades pendientes. Vuelve a buscar al trabajador.');return;}
     if(!it.cant||it.cant<1){alert('La cantidad de "'+it.nombre+'" debe ser mayor a 0');return;}
     if(it.cant>it.cantPend){alert('No puedes devolver más de '+it.cantPend+' unidad(es) de "'+it.nombre+'"');return;}
   }
@@ -1623,7 +1781,8 @@ async function registrarDevolucionLote(){
   document.getElementById('succNote').textContent=huboOffline?'Sin conexión · Se guardará cuando haya red.':'Guardado en la nube ✅';
   navTo('scSuccess','Confirmación');
   resetDevLoteUI();
-  document.getElementById('devLoteCed').value='';
+  document.getElementById('devLoteCed').value='';document.getElementById('devBuscarLote').value='';
+  {const r=document.getElementById('devLoteArtRes');r.style.display='none';r.innerHTML='';}
   document.getElementById('devLoteObs').value='';
   document.getElementById('devLoteEstado').selectedIndex=0;
   document.getElementById('devLoteFecha').value=new Date().toISOString().split('T')[0];
@@ -2553,7 +2712,7 @@ async function registrarDevolucion(){
   document.getElementById('devForm').style.display='none';
   document.getElementById('devItemsList').style.display='none';
   document.getElementById('devTrabInfo').style.display='none';
-  document.getElementById('devCedBuscar').value='';
+  document.getElementById('devCedBuscar').value='';document.getElementById('devBuscarInd').value='';
   document.getElementById('devFecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('devObs').value='';
   clearSig('sigDev');
@@ -3107,9 +3266,10 @@ function llenarDestinosTraslado(){
 }
 function limpiarFormulariosCC(){
   // Al cambiar de centro de costos se limpian selecciones que apuntan a artículos del otro almacén
-  ['entBuscar','entHiddenId','salBuscar','salHiddenId','lisBuscar','lisHiddenId','lotBuscar','lotHiddenId','bajaBuscar','bajaHiddenId','trasBuscar','trasHiddenId','devCedBuscar','devLoteCed','itemSearchAsig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['entBuscar','entHiddenId','salBuscar','salHiddenId','lisBuscar','lisHiddenId','lotBuscar','lotHiddenId','bajaBuscar','bajaHiddenId','trasBuscar','trasHiddenId','devCedBuscar','devLoteCed','devBuscarInd','devBuscarLote','itemSearchAsig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   lisItems=[];renderLisItems();entLoteItems=[];renderLoteItems();
   devSelected=null;devTrabActual=null;resetDevLoteUI();
+  {const r=document.getElementById('devLoteArtRes');if(r){r.style.display='none';r.innerHTML='';}}
   ['devForm','devItemsList','devTrabInfo'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   const ar=document.getElementById('itemAsigResult');if(ar)ar.innerHTML='';
   const pr=document.getElementById('pazResult');if(pr)pr.innerHTML='';
@@ -3245,7 +3405,7 @@ function cancelarRegistro(contId){
     devSelected=null;devTrabActual=null;
     ['devTrabInfo','devItemsList','devForm'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   }
-  if(contId==='devModoLote'||contId==='tDev')resetDevLoteUI();
+  if(contId==='devModoLote'||contId==='tDev'){resetDevLoteUI();const r=document.getElementById('devLoteArtRes');if(r){r.style.display='none';r.innerHTML='';}}
   if(contId==='tTras')document.getElementById('trasCant').value='1';
   checkSalidaReqs();
   document.getElementById('scMovimientos').scrollTop=0;window.scrollTo(0,0);

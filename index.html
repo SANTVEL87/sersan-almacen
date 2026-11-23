@@ -917,9 +917,9 @@ db.enablePersistence().catch(()=>{});
 
 const ALMACENISTA='sersanalmacen01@gmail.com';
 const ALMACENISTAS_TEST=['sersanmantenimiento@gmail.com']; // acceso completo temporal para pruebas
-const ADMINS=['sersanperu1@gmail.com','sersanmantenimiento@gmail.com','sersantecnico@gmail.com','sersanoperativo2@gmail.com','adm2sersan@gmail.com'];
-const OPERADORES=['adm2sersaningenieria@gmail.com']; // salidas, devoluciones, stock, certificados y exportes — NO entradas, artículos nuevos ni bajas
-const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com','adm2sersaningenieria@gmail.com','sersanoperativo2@gmail.com','adm2sersan@gmail.com'];
+const ADMINS=['sersanperu1@gmail.com','sersanmantenimiento@gmail.com','sersantecnico@gmail.com','sersanoperativo2@gmail.com','adm2sersaningenieria@gmail.com'];
+const OPERADORES=[]; // salidas, devoluciones, stock, certificados y exportes — NO entradas, artículos nuevos ni bajas
+const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com','adm2sersaningenieria@gmail.com','sersanoperativo2@gmail.com'];
 
 let currentUser=null,isAlmacenista=false,isAdmin=false,isOperador=false,canGestionarArticulos=false,canOperate=false,inventario=[],movimientos=[],currentMovCat='',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
 let solicitudesPendientes=[],anulMovActual=null;

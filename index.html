@@ -176,6 +176,7 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
       <div class="stat"><div class="stat-n" style="color:var(--yl2)" id="stOut">—</div><div class="stat-l">En campo</div></div>
       <div class="stat"><div class="stat-n" style="color:var(--rd)" id="stLow">—</div><div class="stat-l">Stock bajo</div></div>
     </div>
+    <div id="preAvisoInicio" class="card" style="display:none;background:#FFF8D6;border-color:var(--yl2);cursor:pointer" onclick="irAPreregistros()"></div>
     <div class="sec-title">Alertas de stock</div>
     <div id="alertList"><div class="no-results">Cargando...</div></div>
     <div class="sec-title" style="margin-top:12px">Pendientes por devolver</div>
@@ -373,6 +374,11 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
 
         <!-- MODO LISTA -->
         <div id="salModoLis" style="display:none">
+          <div id="preListaWrap" style="display:none;background:#FFF8D6;border:1px solid var(--yl2);border-radius:9px;padding:10px;margin-bottom:12px">
+            <div class="sec-title" style="color:var(--tx2);margin-bottom:6px">✍️ Preregistros pendientes de firma (<span id="preConteo">0</span>)</div>
+            <div id="preLista"></div>
+          </div>
+          <div id="preActivaBanner" style="display:none;background:var(--bll);border:1px solid var(--bl);color:var(--bl);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;margin-bottom:10px"></div>
           <div class="fg"><label>Trabajador <span class="req-indicator">*</span></label>
             <div class="autocomplete-wrap">
               <input type="text" id="lisTrab" placeholder="Escribe el nombre o la cédula..." oninput="acTrabSearch(this)" autocomplete="off"/>
@@ -416,6 +422,8 @@ canvas.sig-pad{display:block;width:100%;height:110px;background:#ffffff;cursor:c
           </div>
           <div class="fg"><label>Observaciones</label><textarea id="lisObs" rows="2" style="resize:none" placeholder="Opcional..."></textarea></div>
           <button class="btn primary" onclick="registrarSalidaLista()">✓ Registrar salida</button>
+          <button class="btn" id="btnPreregistro" onclick="guardarPreregistro()" style="margin-top:8px;background:#FFF8D6;color:var(--tx);border-color:var(--yl2)">📝 Guardar como preregistro (firma pendiente)</button>
+          <div id="preAyuda" style="font-size:10px;color:var(--tx3);margin-top:4px;text-align:center">Para dejar la salida lista en oficina: no descuenta stock ni pide firma. El trabajador firma al recoger.</div>
         <button class="btn" onclick="cancelarRegistro('salModoLis')" style="margin-top:8px;background:var(--bg);color:var(--tx2)">✕ Cancelar registro</button>
         </div><!-- end salModoLis -->
       </div>
@@ -909,9 +917,9 @@ db.enablePersistence().catch(()=>{});
 
 const ALMACENISTA='sersanalmacen01@gmail.com';
 const ALMACENISTAS_TEST=['sersanmantenimiento@gmail.com']; // acceso completo temporal para pruebas
-const ADMINS=['sersanperu1@gmail.com','sersanmantenimiento@gmail.com','sersantecnico@gmail.com'];
+const ADMINS=['sersanperu1@gmail.com','sersanmantenimiento@gmail.com','sersantecnico@gmail.com','sersanoperativo2@gmail.com','adm2sersan@gmail.com'];
 const OPERADORES=['adm2sersaningenieria@gmail.com']; // salidas, devoluciones, stock, certificados y exportes — NO entradas, artículos nuevos ni bajas
-const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com','adm2sersaningenieria@gmail.com'];
+const AUTORIZADOS=['sersanalmacen01@gmail.com','montajesersan@gmail.com','sersanoperativo@gmail.com','sersanmantenimiento@gmail.com','sersanperu1@gmail.com','sersantecnico@gmail.com','adm2sersaningenieria@gmail.com','sersanoperativo2@gmail.com','adm2sersan@gmail.com'];
 
 let currentUser=null,isAlmacenista=false,isAdmin=false,isOperador=false,canGestionarArticulos=false,canOperate=false,inventario=[],movimientos=[],currentMovCat='',currentInvCat='',currentHistCat='',devSelected=null,devTrabActual=null;
 let solicitudesPendientes=[],anulMovActual=null;
@@ -986,6 +994,7 @@ async function initApp(){
   await loadInventario();
   await loadMovimientos();
   loadTrabajadoresReg();
+  if(canOperate)iniciarPresalidas();
   if(isAdmin)await loadSolicitudes();
 }
 
@@ -2340,6 +2349,7 @@ async function registrarSalidaLista(){
       trabajador:trab,cedula:ced,obra,fechaSalida:fecha,observaciones:obs,
       firma,foto,esLote:true
     };
+    if(presalidaActivaId)data.presalidaId=presalidaActivaId;
     await guardarMov(data);
     if(it.herrId){
       const inv=inventario.find(i=>i.id===it.herrId);
@@ -2351,6 +2361,14 @@ async function registrarSalidaLista(){
     saved++;
   }
   if(!trabExist)await registrarTrabajador(trab,ced);
+  if(presalidaActivaId){
+    const pid=presalidaActivaId;
+    try{
+      const up=db.collection('presalidas').doc(pid).update({estado:'entregado',entregadoPor:currentUser.email,fechaEntrega:new Date().toISOString()});
+      if(navigator.onLine)await up;else up.catch(e=>console.log('Cierre de preregistro pendiente de sincronizar:',e.message));
+    }catch(e){console.log('No se pudo cerrar el preregistro:',e.message);}
+    presalidas=presalidas.filter(p=>p.id!==pid);setPresalidaActiva(null);renderPresalidas();
+  }
   btn.innerHTML='✓ Registrar salida';btn.disabled=false;
   document.getElementById('succH').textContent='¡Salida registrada!';
   document.getElementById('succSub').textContent=saved+' artículo(s) → '+trab;
@@ -2363,6 +2381,159 @@ async function registrarSalidaLista(){
   document.getElementById('lisFecha').value=new Date().toISOString().split('T')[0];
   clearSig('sigLis');
   document.getElementById('prevLis').style.display='none';document.getElementById('pbLis').style.display='block';
+}
+
+// ---- PREREGISTRO DE SALIDAS (firma pendiente) ----
+// En oficina se deja lista la salida (trabajador + artículos) sin firma y sin descontar stock.
+// Cuando el trabajador llega, el almacenista la abre, revisa, el trabajador firma y se registra como salida normal.
+let presalidas=[],presalidaActivaId=null,presalidasUnsub=null;
+function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function iniciarPresalidas(){
+  if(presalidasUnsub)return;
+  try{
+    presalidasUnsub=db.collection('presalidas').where('estado','==','pendiente').onSnapshot(snap=>{
+      presalidas=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||'')));
+      renderPresalidas();
+    },err=>console.log('Preregistros no disponibles:',err.message));
+  }catch(e){console.log('Preregistros no disponibles:',e.message);}
+}
+function presalidasCC(){return presalidas.filter(p=>(p.cc||CC_DEFAULT)===ccActivo);}
+function renderPresalidas(){
+  const lista=presalidasCC();
+  const wrap=document.getElementById('preListaWrap'),cont=document.getElementById('preLista'),aviso=document.getElementById('preAvisoInicio');
+  if(!wrap||!cont)return;
+  document.getElementById('preConteo').textContent=lista.length;
+  if(aviso){
+    if(canOperate&&lista.length){aviso.style.display='block';aviso.innerHTML='<div style="font-size:12px;font-weight:700">✍️ '+lista.length+' salida(s) preregistrada(s) esperando firma</div><div style="font-size:10px;color:var(--tx2);margin-top:2px">Toca para ver y entregar</div>';}
+    else aviso.style.display='none';
+  }
+  if(!lista.length){wrap.style.display='none';cont.innerHTML='';return;}
+  wrap.style.display='block';
+  cont.innerHTML='';
+  lista.forEach(p=>{
+    const items=p.items||[];
+    const total=items.reduce((s,i)=>s+(i.cantidad||0),0);
+    const activa=p.id===presalidaActivaId;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.06)';
+    const fechaTxt=p.fecha?new Date(p.fecha).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}):'';
+    row.innerHTML='<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700">'+escHtml(p.trabajador)+' <span style="font-weight:400;color:var(--tx3);font-size:10px">CC '+escHtml(p.cedula)+'</span></div>'
+      +'<div style="font-size:9px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+items.length+' artículo(s) · '+total+' unid. · '+escHtml(items.map(i=>i.herrNombre).join(', '))+'</div>'
+      +'<div style="font-size:9px;color:var(--tx3)">Preparado por '+escHtml((p.creadoPor||'').split('@')[0])+(fechaTxt?' · '+fechaTxt:'')+'</div></div>';
+    const bE=document.createElement('button');
+    bE.textContent=activa?'Abierto':'✍️ Entregar';bE.disabled=activa;
+    bE.style.cssText='padding:6px 9px;background:var(--bk);color:var(--yl);border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap'+(activa?';opacity:.5':'');
+    bE.addEventListener('click',()=>abrirPresalida(p.id));
+    const bX=document.createElement('button');
+    bX.textContent='🗑️';bX.title='Eliminar preregistro';
+    bX.style.cssText='padding:6px 8px;background:var(--rdl);color:var(--rd);border:1px solid var(--rd);border-radius:6px;font-size:10px;cursor:pointer';
+    bX.addEventListener('click',()=>eliminarPresalida(p.id));
+    row.appendChild(bE);row.appendChild(bX);
+    cont.appendChild(row);
+  });
+}
+function setPresalidaActiva(id){
+  presalidaActivaId=id;
+  const b=document.getElementById('preActivaBanner'),bp=document.getElementById('btnPreregistro'),ay=document.getElementById('preAyuda');
+  const p=id?presalidas.find(x=>x.id===id):null;
+  if(b){
+    if(p){b.style.display='block';b.textContent='📋 Entregando preregistro de '+p.trabajador+' — revisa los artículos, toma la foto si aplica y pide la firma.';}
+    else b.style.display='none';
+  }
+  if(bp)bp.style.display=id?'none':'block';
+  if(ay)ay.style.display=id?'none':'block';
+  renderPresalidas();
+}
+function irAPreregistros(){
+  navTo('scMovimientos','Movimientos');
+  setMovTab(document.getElementById('tabMovSal'),'tSal');
+  setTimeout(()=>{const w=document.getElementById('preListaWrap');if(w)w.scrollIntoView({behavior:'smooth',block:'start'});},50);
+}
+async function guardarPreregistro(){
+  if(!canOperate)return;
+  const trab=document.getElementById('lisTrab').value.trim();
+  const ced=document.getElementById('lisCed').value.trim();
+  if(!trab||!ced){alert('Completa el trabajador y la cédula');return;}
+  if(!lisItems.length){alert('Agrega al menos un artículo');return;}
+  const trabExist=trabajadoresBase().find(t=>t.cedula===ced);
+  if(trabExist&&normTxt(trabExist.nombre)!==normTxt(trab)){
+    if(!confirm('⚠️ La cédula '+ced+' ya está registrada a nombre de:\n'+trabExist.nombre+'\n\n¿Continuar con el nombre "'+trab+'"?'))return;
+  }
+  const yaPend=presalidasCC().find(p=>String(p.cedula)===ced);
+  if(yaPend&&!confirm('⚠️ '+trab+' ya tiene un preregistro pendiente de firma.\n¿Crear otro de todas formas?'))return;
+  const doc={
+    estado:'pendiente',trabajador:trab,cedula:ced,
+    obra:document.getElementById('lisObra').value,
+    observaciones:document.getElementById('lisObs').value,
+    items:lisItems.map(i=>({herrId:i.herrId,herrNombre:i.herrNombre,cantidad:i.cantidad,categoria:i.categoria||''})),
+    cc:ccActivo,creadoPor:currentUser.email,fecha:new Date().toISOString()
+  };
+  const btn=document.getElementById('btnPreregistro');
+  btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;
+  try{
+    // Firestore guarda localmente si no hay señal y sincroniza al volver la conexión
+    const ref=db.collection('presalidas').doc();
+    const p=ref.set(doc);
+    if(navigator.onLine)await p;else p.catch(e=>console.log('Preregistro pendiente de sincronizar:',e.message));
+    if(!presalidas.find(x=>x.id===ref.id)){presalidas.push({id:ref.id,...doc});}
+  }catch(e){
+    btn.innerHTML='📝 Guardar como preregistro (firma pendiente)';btn.disabled=false;
+    alert('No se pudo guardar el preregistro: '+e.message);return;
+  }
+  if(!trabExist)await registrarTrabajador(trab,ced);
+  btn.innerHTML='📝 Guardar como preregistro (firma pendiente)';btn.disabled=false;
+  // Limpiar formulario
+  lisItems=[];renderLisItems();
+  ['lisTrab','lisCed','lisObs','lisBuscar','lisHiddenId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('lisTrabNuevo').style.display='none';
+  clearSig('sigLis');
+  document.getElementById('prevLis').style.display='none';document.getElementById('pbLis').style.display='block';
+  renderPresalidas();
+  alert('📝 Preregistro guardado para '+trab+'.\nQueda pendiente de firma: cuando llegue, ábrelo con "✍️ Entregar" en Salida.\n\nEl stock se descuenta solo al firmar.');
+}
+function abrirPresalida(id){
+  const p=presalidas.find(x=>x.id===id);if(!p)return;
+  if((lisItems.length||document.getElementById('lisTrab').value.trim())&&presalidaActivaId!==id){
+    if(!confirm('Hay una salida a medio llenar en el formulario. ¿Reemplazarla con este preregistro?'))return;
+  }
+  document.getElementById('lisTrab').value=p.trabajador||'';
+  document.getElementById('lisCed').value=p.cedula||'';
+  document.getElementById('lisTrabNuevo').style.display='none';
+  const sel=document.getElementById('lisObra');
+  if(p.obra&&[...sel.options].some(o=>o.value===p.obra))sel.value=p.obra;
+  document.getElementById('lisObs').value=p.observaciones||'';
+  document.getElementById('lisFecha').value=new Date().toISOString().split('T')[0];
+  clearSig('sigLis');
+  // Cargar artículos ajustando al stock disponible actual
+  const avisos=[];lisItems=[];
+  (p.items||[]).forEach(it=>{
+    const inv=inventario.find(i=>i.id===it.herrId);
+    const disp=inv?(inv.disponible||0):0;
+    if(!inv){avisos.push('• '+it.herrNombre+': ya no está en el inventario de este almacén');return;}
+    if(disp<=0){avisos.push('• '+it.herrNombre+': sin stock disponible (se quitó)');return;}
+    const cant=Math.min(it.cantidad,disp);
+    if(cant<it.cantidad)avisos.push('• '+it.herrNombre+': se pidieron '+it.cantidad+', solo hay '+disp+' (se ajustó)');
+    lisItems.push({herrId:it.herrId,herrNombre:inv.nombre||it.herrNombre,cantidad:cant,categoria:inv.categoria||it.categoria||''});
+  });
+  renderLisItems();
+  setPresalidaActiva(id);
+  if(avisos.length)alert('⚠️ El stock cambió desde que se hizo el preregistro:\n\n'+avisos.join('\n'));
+  setTimeout(()=>{const s=document.getElementById('lisItemsContainer');if(s&&s.style.display!=='none')s.scrollIntoView({behavior:'smooth',block:'start'});},50);
+}
+async function eliminarPresalida(id){
+  const p=presalidas.find(x=>x.id===id);if(!p)return;
+  if(!confirm('¿Eliminar el preregistro de '+p.trabajador+'?\nNo se ha entregado nada, así que no afecta el stock.'))return;
+  try{
+    const up=db.collection('presalidas').doc(id).update({estado:'eliminado',eliminadoPor:currentUser.email,fechaEliminado:new Date().toISOString()});
+    if(navigator.onLine)await up;else up.catch(e=>console.log('Eliminación pendiente de sincronizar:',e.message));
+  }catch(e){alert('No se pudo eliminar: '+e.message);return;}
+  presalidas=presalidas.filter(x=>x.id!==id);
+  if(presalidaActivaId===id){
+    lisItems=[];renderLisItems();
+    ['lisTrab','lisCed','lisObs'].forEach(k=>{const el=document.getElementById(k);if(el)el.value='';});
+    setPresalidaActiva(null);
+  }
+  renderPresalidas();
 }
 
 // ---- BAJA DE EQUIPOS ----
@@ -3256,7 +3427,7 @@ function aplicarCC(){
   document.getElementById('ccBarNombre').textContent=ccNombre(ccActivo);
   const lbl=document.getElementById('trasOrigenLbl');if(lbl)lbl.textContent=ccNombre(ccActivo);
   llenarDestinosTraslado();
-  renderInv(inventario);renderHistorial(movimientos);loadDashboard();
+  renderInv(inventario);renderHistorial(movimientos);loadDashboard();renderPresalidas();
   if(document.getElementById('scAsignaciones').classList.contains('active'))loadTrabajadores();
 }
 function llenarDestinosTraslado(){
@@ -3267,7 +3438,7 @@ function llenarDestinosTraslado(){
 function limpiarFormulariosCC(){
   // Al cambiar de centro de costos se limpian selecciones que apuntan a artículos del otro almacén
   ['entBuscar','entHiddenId','salBuscar','salHiddenId','lisBuscar','lisHiddenId','lotBuscar','lotHiddenId','bajaBuscar','bajaHiddenId','trasBuscar','trasHiddenId','devCedBuscar','devLoteCed','devBuscarInd','devBuscarLote','itemSearchAsig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  lisItems=[];renderLisItems();entLoteItems=[];renderLoteItems();
+  lisItems=[];renderLisItems();setPresalidaActiva(null);entLoteItems=[];renderLoteItems();
   devSelected=null;devTrabActual=null;resetDevLoteUI();
   {const r=document.getElementById('devLoteArtRes');if(r){r.style.display='none';r.innerHTML='';}}
   ['devForm','devItemsList','devTrabInfo'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
@@ -3400,7 +3571,7 @@ function cancelarRegistro(contId){
     document.getElementById('lotItemFacturaWrap').style.display='none';
     renderLoteItems();
   }
-  if(contId==='salModoLis'){lisItems=[];renderLisItems();}
+  if(contId==='salModoLis'){lisItems=[];renderLisItems();setPresalidaActiva(null);}
   if(contId==='tDev'){
     devSelected=null;devTrabActual=null;
     ['devTrabInfo','devItemsList','devForm'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
